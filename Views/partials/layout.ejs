@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/styles/site.css">
+</head>
+<body>
+  <header class="site-header">
+	<div class="site-brand">PA Infrastructure Portal</div>
+	<nav class="site-nav">
+	  <a href="/">Home</a>
+	  <a href="/dashboard">Dashboard</a>
+	  <a href="/login">Sign In</a>
+	  <a href="/register">Register</a>
+	  <a href="/privacy">Privacy</a>
+	  <a href="/setup">Setup</a>
+	  <a href="/residents">Residents</a>
+	  <a href="/command-view">Command View</a>
+	  <a href="/stats-hub">Stats Hub</a>
+	</nav>
+  </header>
+
+  <main class="site-main">
+	<section class="hero-card">
+	  <%- content %>
+	</section>
+  </main>
+
+  <footer class="site-footer">
+	<small>Node.js version for cPanel deployment</small>
+  </footer>
+</body>
+</html>

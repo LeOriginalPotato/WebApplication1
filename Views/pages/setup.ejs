@@ -1,0 +1,15 @@
+<%- include('../partials/layout', {
+  title: 'Setup',
+  content: `
+	<h1>Setup</h1>
+	<p class="muted">This Node.js page is ready for cPanel deployment and can be extended later for persistence or configuration.</p>
+	${notice ? `<div class="panel" style="margin-bottom:1rem;">${notice}</div>` : ''}
+	<form method="post" action="/setup">
+	  <div class="grid">
+		<div><label>Environment Name</label><input class="form-control" name="environmentName" value="production"></div>
+		<div><label>Site Name</label><input class="form-control" name="siteName" value="PA Infrastructure Portal"></div>
+	  </div>
+	  <p style="margin-top:1rem;"><button class="btn" type="submit">Save Setup</button></p>
+	</form>
+  `
+}) %>

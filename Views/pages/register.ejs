@@ -1,0 +1,17 @@
+<%- include('../partials/layout', {
+  title: 'Resident Registration',
+  content: `
+	<h1>Resident Registration</h1>
+	<p class="muted">This page mirrors the PHP site structure and can be expanded for full account creation.</p>
+	${notice ? `<div class="panel" style="margin-bottom:1rem;">${notice}</div>` : ''}
+	<form method="post" action="/register">
+	  <div class="grid">
+		<div><label>Username</label><input class="form-control" name="username"></div>
+		<div><label>Email Address</label><input class="form-control" type="email" name="emailAddress"></div>
+		<div><label>First Name</label><input class="form-control" name="firstName"></div>
+		<div><label>Last Name</label><input class="form-control" name="lastName"></div>
+	  </div>
+	  <p style="margin-top:1rem;"><button class="btn" type="submit">Register</button></p>
+	</form>
+  `
+}) %>

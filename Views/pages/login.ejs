@@ -1,0 +1,21 @@
+<%- include('../partials/layout', {
+  title: 'Sign In',
+  content: `
+	<h1>Sign In</h1>
+	<p class="muted">This page is wired for Node.js deployment. Authentication can be added in the next pass.</p>
+	${notice ? `<div class="panel" style="margin-bottom:1rem;">${notice}</div>` : ''}
+	<form method="post" action="/login">
+	  <div class="grid">
+		<div>
+		  <label>Email Address</label>
+		  <input class="form-control" type="email" name="emailAddress" placeholder="jeanmari@thesolution.co.za">
+		</div>
+		<div>
+		  <label>Password</label>
+		  <input class="form-control" type="password" name="password" placeholder="Your password">
+		</div>
+	  </div>
+	  <p style="margin-top:1rem;"><button class="btn" type="submit">Sign In</button></p>
+	</form>
+  `
+}) %>
