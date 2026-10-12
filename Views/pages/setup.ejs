@@ -3,7 +3,7 @@
   content: `
 	<h1>Setup</h1>
 	<p class="muted">This Node.js page is ready for cPanel deployment and can be extended later for persistence or configuration.</p>
-	${notice ? `<div class="panel" style="margin-bottom:1rem;">${notice}</div>` : ''}
+	${typeof notice !== 'undefined' && notice ? `<div class="panel" style="margin-bottom:1rem;">${notice}</div>` : ''}
 	<form method="post" action="/setup">
 	  <div class="grid">
 		<div><label>Environment Name</label><input class="form-control" name="environmentName" value="production"></div>

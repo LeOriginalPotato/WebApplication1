@@ -3,7 +3,7 @@
   content: `
 	<h1>Resident Registration</h1>
 	<p class="muted">This page mirrors the PHP site structure and can be expanded for full account creation.</p>
-	${notice ? `<div class="panel" style="margin-bottom:1rem;">${notice}</div>` : ''}
+	${typeof notice !== 'undefined' && notice ? `<div class="panel" style="margin-bottom:1rem;">${notice}</div>` : ''}
 	<form method="post" action="/register">
 	  <div class="grid">
 		<div><label>Username</label><input class="form-control" name="username"></div>

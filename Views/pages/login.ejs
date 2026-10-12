@@ -3,7 +3,7 @@
   content: `
 	<h1>Sign In</h1>
 	<p class="muted">This page is wired for Node.js deployment. Authentication can be added in the next pass.</p>
-	${notice ? `<div class="panel" style="margin-bottom:1rem;">${notice}</div>` : ''}
+	${typeof notice !== 'undefined' && notice ? `<div class="panel" style="margin-bottom:1rem;">${notice}</div>` : ''}
 	<form method="post" action="/login">
 	  <div class="grid">
 		<div>
