@@ -108,6 +108,8 @@ namespace WebApplication1.Controllers
                 PropertyAddress = model.PropertyAddress,
                 MunicipalAccountNumber = model.MunicipalAccountNumber,
                 ErfNumber = model.ErfNumber,
+                TitleDeedNumber = model.TitleDeedNumber,
+                ActualDominantUse = model.ActualDominantUse,
                 PropertyCategoryDispute = model.PropertyCategoryDispute,
                 OwnerStatement = model.OwnerStatement,
                 NoFormalNoticeReceived = model.NoFormalNoticeReceived,

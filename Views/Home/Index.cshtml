@@ -307,6 +307,14 @@
                             <label class="form-label" for="physicalAddress">Physical Street Address</label>
                             <input id="physicalAddress" name="PhysicalAddress" class="form-control" required />
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="wardName">Ward / Sector</label>
+                            <select id="wardName" name="WardName" class="form-select" required>
+                                <option value="Mohlakeng">Mohlakeng</option>
+                                <option value="Rural Holdings">Rural Holdings</option>
+                                <option value="CBD Core">CBD Core</option>
+                            </select>
+                        </div>
                         <div class="row g-2 mb-3">
                             <div class="col-6">
                                 <label class="form-label" for="latitude">Latitude</label>
@@ -315,6 +323,12 @@
                             <div class="col-6">
                                 <label class="form-label" for="longitude">Longitude</label>
                                 <input id="longitude" name="Longitude" type="number" step="0.000001" class="form-control" required />
+                            </div>
+                        </div>
+                        <div class="check-wrap">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="liveLoggingOptIn" required>
+                                <label class="form-check-label" for="liveLoggingOptIn">I opt in to live complaint logging and AI-assisted statistics processing.</label>
                             </div>
                         </div>
                         <div class="mb-3 proof-dropzone">
@@ -436,6 +450,8 @@
                 categoryID: Number(document.getElementById("category").value),
                 description: document.getElementById("description").value,
                 physicalAddress: document.getElementById("physicalAddress").value,
+                wardName: document.getElementById("wardName").value,
+                liveLoggingOptIn: document.getElementById("liveLoggingOptIn").checked,
                 latitude: Number(document.getElementById("latitude").value),
                 longitude: Number(document.getElementById("longitude").value)
             };

@@ -7,6 +7,8 @@
     .panel { background:rgba(20,27,39,.94); border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:1rem; box-shadow:0 10px 24px rgba(0,0,0,.28); }
     .panel h2 { color:#fff; font-size:1.05rem; font-weight:700; margin-bottom:.7rem; }
     .filters { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.8rem; }
+    .push-box { display:grid; gap:.75rem; margin-top:.8rem; }
+    .payload, .findings { width:100%; }
     .ticket-list { display:grid; gap:.7rem; }
     .ticket-card { border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:.85rem; background:rgba(255,255,255,.02); }
     .ticket-head { display:flex; justify-content:space-between; gap:.6rem; flex-wrap:wrap; }
@@ -16,6 +18,7 @@
     .drawer { margin-top:.7rem; padding-top:.7rem; border-top:1px solid rgba(255,255,255,.1); display:grid; gap:.7rem; }
     .gps { color:#dce7f5; font-weight:600; }
     .findings { width:100%; min-height:85px; resize:vertical; border-radius:10px; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:#fff; padding:.55rem; }
+    .payload { width:100%; min-height:95px; resize:vertical; border-radius:10px; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:#fff; padding:.55rem; }
     .check-inline { display:flex; align-items:center; gap:.45rem; }
     .btn-gold { border:1px solid #ffcc00; background:#ffcc00; color:#1a1f2c; font-weight:800; border-radius:999px; padding:.55rem .9rem; }
     .btn-gold:hover { background:#ffe066; }
@@ -31,9 +34,19 @@
                 <label class="form-label text-white" for="wardFilter">Ward / Sector</label>
                 <select id="wardFilter" class="form-select">
                     <option value="all">All Sectors</option>
-                    <option value="mohlakeng">Mohlakeng</option>
-                    <option value="rural">Rural Holdings</option>
-                    <option value="cbd">CBD Core</option>
+                    <option value="Mohlakeng">Mohlakeng</option>
+                    <option value="Rural Holdings">Rural Holdings</option>
+                    <option value="CBD Core">CBD Core</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label text-white" for="categoryFilter">Complaint Category</label>
+                <select id="categoryFilter" class="form-select">
+                    <option value="all">All Categories</option>
+                    <option value="Electrical & Grid">Electrical &amp; Grid</option>
+                    <option value="Roads & Transport">Roads &amp; Transport</option>
+                    <option value="Water & Sanitation">Water &amp; Sanitation</option>
+                    <option value="Environmental & Landfill">Environmental &amp; Landfill</option>
                 </select>
             </div>
             <div>
@@ -81,12 +94,18 @@
                     </div>
                     <label class="check-inline"><input type="checkbox" class="dispatch" ${ticket.teamDispatched ? 'checked' : ''} /> Team Dispatched</label>
                     <label class="check-inline"><input type="checkbox" class="resolve" ${ticket.isResolved ? 'checked disabled' : ''} /> Mark as Resolved</label>
+                    <div class="push-box">
+                        <label class="form-label text-white">Pre-populated Technical Dataset</label>
+                        <textarea class="payload">Ticket ${ticket.ticketReference} | Ward ${ticket.wardName || 'N/A'} | ${ticket.category} | ${ticket.physicalAddress} | ${ticket.latitude}, ${ticket.longitude} | Resident ${ticket.resident}</textarea>
+                        <button type="button" class="btn-gold push">Push To Municipality</button>
+                    </div>
                     <button type="button" class="btn-gold save">Save Workflow Update</button>
                     <div class="result"></div>
                 </div>`;
 
             const saveButton = card.querySelector('.save');
             const findingsEl = card.querySelector('.findings');
+            const payloadEl = card.querySelector('.payload');
             const dispatchEl = card.querySelector('.dispatch');
             const resolveEl = card.querySelector('.resolve');
             const resultEl = card.querySelector('.result');
@@ -119,12 +138,31 @@
                 }
             });
 
+            card.querySelector('.push').addEventListener('click', async function () {
+                const pushResponse = await fetch(`/api/oversight/complaints/${ticket.faultID}/push`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ technicalPayload: payloadEl.value })
+                });
+
+                if (pushResponse.ok) {
+                    const updated = await pushResponse.json();
+                    card.querySelector('.badge-status').textContent = updated.status;
+                    resultEl.innerHTML = '<span class="success">Complaint pushed to municipality.</span>';
+                } else {
+                    resultEl.innerHTML = '<span style="color:#ff8da1;">Municipal push failed.</span>';
+                }
+            });
+
             list.appendChild(card);
         };
 
         const loadComplaints = async () => {
             message.textContent = 'Loading complaints...';
-            const response = await fetch('/api/oversight/complaints');
+            const ward = document.getElementById('wardFilter').value;
+            const category = document.getElementById('categoryFilter').value;
+            const urgency = document.getElementById('urgencyFilter').value;
+            const response = await fetch(`/api/oversight/complaints?ward=${encodeURIComponent(ward)}&category=${encodeURIComponent(category)}&urgency=${encodeURIComponent(urgency)}`);
             if (!response.ok) {
                 message.innerHTML = '<span style="color:#ff8da1;">Unable to load complaints.</span>';
                 return;
@@ -136,6 +174,9 @@
             complaints.forEach(renderTicket);
         };
 
+        document.getElementById('wardFilter').addEventListener('change', loadComplaints);
+        document.getElementById('categoryFilter').addEventListener('change', loadComplaints);
+        document.getElementById('urgencyFilter').addEventListener('change', loadComplaints);
         loadComplaints();
     })();
 </script>

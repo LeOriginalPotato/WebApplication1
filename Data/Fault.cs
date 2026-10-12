@@ -19,6 +19,10 @@ public class Fault
 
     public string PhysicalAddress { get; set; } = string.Empty;
 
+    public string WardName { get; set; } = string.Empty;
+
+    public bool LiveLoggingOptIn { get; set; }
+
     public decimal Latitude { get; set; }
 
     public decimal Longitude { get; set; }

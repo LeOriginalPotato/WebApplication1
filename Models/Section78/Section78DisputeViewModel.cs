@@ -18,6 +18,14 @@ public class Section78DisputeViewModel
     public string ErfNumber { get; set; } = string.Empty;
 
     [Required]
+    [Display(Name = "Title Deed Number")]
+    public string TitleDeedNumber { get; set; } = string.Empty;
+
+    [Required]
+    [Display(Name = "Actual Dominant Use")]
+    public string ActualDominantUse { get; set; } = string.Empty;
+
+    [Required]
     [Display(Name = "Disputed Property Category or Valuation Issue")]
     public string PropertyCategoryDispute { get; set; } = string.Empty;
 

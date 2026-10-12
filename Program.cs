@@ -65,6 +65,12 @@ using (IServiceScope scope = app.Services.CreateScope())
             IF COL_LENGTH(N'dbo.Faults', N'InspectionFindings') IS NULL
                 ALTER TABLE dbo.Faults ADD InspectionFindings nvarchar(max) NOT NULL CONSTRAINT DF_Faults_InspectionFindings_Compat DEFAULT (N'');
 
+            IF COL_LENGTH(N'dbo.Faults', N'WardName') IS NULL
+                ALTER TABLE dbo.Faults ADD WardName nvarchar(max) NOT NULL CONSTRAINT DF_Faults_WardName_Compat DEFAULT (N'');
+
+            IF COL_LENGTH(N'dbo.Faults', N'LiveLoggingOptIn') IS NULL
+                ALTER TABLE dbo.Faults ADD LiveLoggingOptIn bit NOT NULL CONSTRAINT DF_Faults_LiveLoggingOptIn_Compat DEFAULT (0);
+
             IF COL_LENGTH(N'dbo.Faults', N'IsResolved') IS NULL
                 ALTER TABLE dbo.Faults ADD IsResolved bit NOT NULL CONSTRAINT DF_Faults_IsResolved_Compat DEFAULT (0);
 
@@ -131,6 +137,8 @@ using (IServiceScope scope = app.Services.CreateScope())
                 PropertyAddress nvarchar(max) NOT NULL,
                 MunicipalAccountNumber nvarchar(max) NOT NULL,
                 ErfNumber nvarchar(max) NOT NULL,
+                TitleDeedNumber nvarchar(max) NOT NULL CONSTRAINT DF_Section78Disputes_TitleDeedNumber_Compat DEFAULT(N''),
+                ActualDominantUse nvarchar(max) NOT NULL CONSTRAINT DF_Section78Disputes_ActualDominantUse_Compat DEFAULT(N''),
                 PropertyCategoryDispute nvarchar(max) NOT NULL,
                 OwnerStatement nvarchar(max) NOT NULL,
                 NoFormalNoticeReceived bit NOT NULL CONSTRAINT DF_Section78Disputes_NoFormalNoticeReceived_Compat DEFAULT(0),

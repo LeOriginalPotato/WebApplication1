@@ -53,6 +53,11 @@ public class FaultReportingController : ControllerBase
                 return BadRequest(new { message = "Resident profile is incomplete. Complete all required profile fields before logging a complaint." });
             }
 
+            if (!request.LiveLoggingOptIn)
+            {
+                return BadRequest(new { message = "You must opt in to live logging before submitting this complaint." });
+            }
+
             bool categoryExists = await _dbContext.Categories.AnyAsync(c => c.CategoryID == request.CategoryID, cancellationToken);
             if (!categoryExists)
             {
@@ -68,6 +73,8 @@ public class FaultReportingController : ControllerBase
                 CategoryID = request.CategoryID,
                 Description = request.Description,
                 PhysicalAddress = request.PhysicalAddress,
+                WardName = request.WardName,
+                LiveLoggingOptIn = request.LiveLoggingOptIn,
                 Latitude = request.Latitude,
                 Longitude = request.Longitude,
                 Status = "Logged",
@@ -126,6 +133,7 @@ public class FaultReportingController : ControllerBase
                 {
                     TicketReference = f.TicketReference,
                     DateLogged = f.DateLogged,
+                    WardName = f.WardName,
                     Status = f.Status,
                     LatestUpdate = f.EscalationHistory
                         .OrderByDescending(e => e.DateActioned)
@@ -220,6 +228,8 @@ public class FaultReportingController : ControllerBase
         public int CategoryID { get; set; }
         public string Description { get; set; } = string.Empty;
         public string PhysicalAddress { get; set; } = string.Empty;
+        public string WardName { get; set; } = string.Empty;
+        public bool LiveLoggingOptIn { get; set; }
         public decimal Latitude { get; set; }
         public decimal Longitude { get; set; }
     }
@@ -228,9 +238,15 @@ public class FaultReportingController : ControllerBase
     {
         public string TicketReference { get; set; } = string.Empty;
         public DateTime DateLogged { get; set; }
+        public string WardName { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public string LatestUpdate { get; set; } = string.Empty;
         public DateTime LastUpdatedAt { get; set; }
+    }
+
+    public sealed class PushToMunicipalityRequest
+    {
+        public string TechnicalPayload { get; set; } = string.Empty;
     }
 
     public sealed class WhatsAppAnalyticsResult

@@ -136,6 +136,8 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.TicketReference).IsRequired();
             entity.Property(e => e.Description).IsRequired();
             entity.Property(e => e.PhysicalAddress).IsRequired();
+            entity.Property(e => e.WardName).IsRequired();
+            entity.Property(e => e.LiveLoggingOptIn).HasDefaultValue(false);
             entity.Property(e => e.Latitude).HasPrecision(9, 6);
             entity.Property(e => e.Longitude).HasPrecision(9, 6);
             entity.Property(e => e.Status).HasDefaultValue("Logged");
@@ -191,6 +193,8 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.PropertyAddress).IsRequired();
             entity.Property(e => e.MunicipalAccountNumber).IsRequired();
             entity.Property(e => e.ErfNumber).IsRequired();
+            entity.Property(e => e.TitleDeedNumber).IsRequired();
+            entity.Property(e => e.ActualDominantUse).IsRequired();
             entity.Property(e => e.PropertyCategoryDispute).IsRequired();
             entity.Property(e => e.OwnerStatement).IsRequired();
             entity.Property(e => e.SupportingDocumentPath).IsRequired();

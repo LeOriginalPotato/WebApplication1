@@ -16,6 +16,10 @@ public class Section78Dispute
 
     public string ErfNumber { get; set; } = string.Empty;
 
+    public string TitleDeedNumber { get; set; } = string.Empty;
+
+    public string ActualDominantUse { get; set; } = string.Empty;
+
     public string PropertyCategoryDispute { get; set; } = string.Empty;
 
     public string OwnerStatement { get; set; } = string.Empty;

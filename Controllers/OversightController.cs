@@ -23,12 +23,35 @@ public class OversightController : ControllerBase
     }
 
     [HttpGet("complaints")]
-    public async Task<IActionResult> GetComplaintsAsync(CancellationToken cancellationToken)
+    public async Task<IActionResult> GetComplaintsAsync([FromQuery] string? ward = null, [FromQuery] string? category = null, [FromQuery] string? urgency = null, CancellationToken cancellationToken = default)
     {
-        var complaints = await _dbContext.Faults
+        IQueryable<Fault> query = _dbContext.Faults
             .AsNoTracking()
             .Include(f => f.User)
-            .Include(f => f.Category)
+            .Include(f => f.Category);
+
+        if (!string.IsNullOrWhiteSpace(ward) && !string.Equals(ward, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(f => f.WardName == ward);
+        }
+
+        if (!string.IsNullOrWhiteSpace(category) && !string.Equals(category, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(f => f.Category.CategoryName == category);
+        }
+
+        if (!string.IsNullOrWhiteSpace(urgency) && !string.Equals(urgency, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            query = urgency.ToLowerInvariant() switch
+            {
+                "critical" => query.Where(f => f.Category.CategoryName.Contains("Electrical") || f.Category.CategoryName.Contains("Water")),
+                "high" => query.Where(f => f.Category.CategoryName.Contains("Roads") || f.Category.CategoryName.Contains("Electrical")),
+                "medium" => query.Where(f => f.Category.CategoryName.Contains("Environmental")),
+                _ => query
+            };
+        }
+
+        var complaints = await query
             .OrderByDescending(f => f.DateLogged)
             .Select(f => new
             {
@@ -38,6 +61,7 @@ public class OversightController : ControllerBase
                 Category = f.Category.CategoryName,
                 f.Description,
                 f.PhysicalAddress,
+                f.WardName,
                 f.Latitude,
                 f.Longitude,
                 f.Status,
@@ -147,10 +171,88 @@ public class OversightController : ControllerBase
         });
     }
 
+    [HttpPost("complaints/{faultId:int}/push")]
+    public async Task<IActionResult> PushToMunicipalityAsync(int faultId, [FromBody] PushToMunicipalityRequest request, CancellationToken cancellationToken)
+    {
+        string? actorIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(actorIdClaim, out int actorUserId))
+        {
+            return Unauthorized(new { message = "Invalid authentication context." });
+        }
+
+        Fault? fault = await _dbContext.Faults
+            .Include(f => f.User)
+            .Include(f => f.Category)
+            .FirstOrDefaultAsync(f => f.FaultID == faultId, cancellationToken);
+
+        if (fault is null)
+        {
+            return NotFound(new { message = "Complaint not found." });
+        }
+
+        string technicalPayload = string.IsNullOrWhiteSpace(request.TechnicalPayload)
+            ? $"Ticket {fault.TicketReference} | Ward {fault.WardName} | {fault.Category.CategoryName} | {fault.PhysicalAddress} | {fault.Latitude},{fault.Longitude} | Resident {fault.User.FirstName} {fault.User.LastName}"
+            : request.TechnicalPayload.Trim();
+
+        fault.Status = "Pushed to Municipality";
+        fault.TeamDispatched = true;
+        fault.LastUpdated = DateTime.UtcNow;
+
+        _dbContext.EscalationHistories.Add(new EscalationHistory
+        {
+            FaultID = fault.FaultID,
+            ActionTakenBy = actorUserId,
+            Notes = $"Pushed to municipality with payload: {technicalPayload}",
+            DateActioned = DateTime.UtcNow
+        });
+
+        _dbContext.Notifications.Add(new Notification
+        {
+            UserID = fault.UserID,
+            TargetRole = "Resident",
+            Message = $"Your complaint {fault.TicketReference} was pushed to municipality engineering.",
+            RelatedTicketReference = fault.TicketReference,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        _dbContext.Notifications.Add(new Notification
+        {
+            TargetRole = "Municipal Engineer",
+            Message = technicalPayload,
+            RelatedTicketReference = fault.TicketReference,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await _hubContext.Clients.Group("role:Municipal Engineer").SendAsync(
+            "ReceiveNotification",
+            new
+            {
+                Type = "MunicipalPush",
+                TicketReference = fault.TicketReference,
+                Payload = technicalPayload
+            },
+            cancellationToken);
+
+        return Ok(new
+        {
+            fault.FaultID,
+            fault.TicketReference,
+            fault.Status,
+            TechnicalPayload = technicalPayload
+        });
+    }
+
     public sealed class UpdateWorkflowRequest
     {
         public bool? TeamDispatched { get; set; }
         public string InspectionFindings { get; set; } = string.Empty;
         public bool MarkResolved { get; set; }
+    }
+
+    public sealed class PushToMunicipalityRequest
+    {
+        public string TechnicalPayload { get; set; } = string.Empty;
     }
 }
