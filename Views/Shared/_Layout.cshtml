@@ -1,0 +1,411 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - PA Infrastructure Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    @inject TheSolution.PAPortal.Data.ApplicationDbContext DbContext
+    @using Microsoft.EntityFrameworkCore
+    <style>
+        :root {
+            --pa-bg: #1a1f2c;
+            --pa-emerald: #006837;
+            --pa-gold: #ffcc00;
+            --pa-heading: #ffffff;
+            --pa-muted: #a0aec0;
+            --pa-glass: rgba(26, 31, 44, 0.72);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100%;
+            background: radial-gradient(circle at 0% 0%, rgba(0, 104, 55, 0.14), transparent 45%), radial-gradient(circle at 100% 100%, rgba(255, 204, 0, 0.08), transparent 40%), var(--pa-bg);
+            color: var(--pa-muted);
+            font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.65;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
+            color: var(--pa-heading);
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        a {
+            color: var(--pa-gold);
+            text-decoration: none;
+            transition: color .25s ease, text-shadow .25s ease, transform .25s ease;
+        }
+
+        a:hover {
+            color: #ffe066;
+            text-shadow: 0 0 8px rgba(255, 204, 0, 0.35);
+            transform: translateY(-1px);
+        }
+
+        .pa-navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1050;
+            background: var(--pa-glass);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+        }
+
+        .pa-brand {
+            color: var(--pa-heading);
+            font-weight: 700;
+            letter-spacing: 0.11em;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+        }
+
+        .pa-brand:hover {
+            color: var(--pa-gold);
+        }
+
+        .pa-clock {
+            font-weight: 600;
+            color: var(--pa-heading);
+            font-size: 0.95rem;
+            min-width: 210px;
+            text-align: center;
+            background: rgba(0, 104, 55, 0.18);
+            border: 1px solid rgba(0, 104, 55, 0.45);
+            border-radius: 999px;
+            padding: 0.42rem 0.9rem;
+        }
+
+        .pa-profile-badge {
+            border: 1px solid rgba(255, 204, 0, 0.45);
+            border-radius: 999px;
+            background: rgba(255, 204, 0, 0.1);
+            color: var(--pa-gold);
+            font-weight: 600;
+            padding: 0.42rem 0.88rem;
+        }
+
+        .pa-profile-badge:hover,
+        .pa-profile-badge:focus {
+            color: #ffe066;
+            border-color: rgba(255, 224, 102, 0.7);
+            background: rgba(255, 204, 0, 0.16);
+        }
+
+        .pa-whatsapp-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.6rem;
+            height: 2.6rem;
+            border-radius: 999px;
+            border: 1px solid rgba(37, 211, 102, 0.45);
+            background: rgba(37, 211, 102, 0.12);
+            color: #25d366;
+            transition: transform .2s ease, background .2s ease, box-shadow .2s ease;
+        }
+
+        .pa-whatsapp-button:hover,
+        .pa-whatsapp-button:focus {
+            color: #25d366;
+            background: rgba(37, 211, 102, 0.2);
+            box-shadow: 0 0 0 0.2rem rgba(37, 211, 102, 0.14);
+            transform: translateY(-1px);
+        }
+
+        .pa-whatsapp-button svg {
+            width: 1.2rem;
+            height: 1.2rem;
+            fill: currentColor;
+        }
+
+        .pa-notify {
+            border: 1px solid rgba(143, 217, 255, 0.5);
+            border-radius: 999px;
+            background: rgba(68, 170, 255, 0.15);
+            color: #8fd9ff;
+            font-weight: 700;
+            padding: 0.35rem 0.72rem;
+            font-size: 0.82rem;
+        }
+
+        .pa-live-alert {
+            position: fixed;
+            right: 1rem;
+            bottom: 1rem;
+            z-index: 1200;
+            max-width: 320px;
+            border: 1px solid rgba(0, 191, 110, 0.45);
+            background: rgba(17, 28, 22, 0.95);
+            color: #a8f2ca;
+            border-radius: 12px;
+            padding: 0.75rem;
+            box-shadow: 0 14px 26px rgba(0, 0, 0, 0.34);
+            display: none;
+        }
+
+        .dropdown-menu {
+            background-color: #232a3a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 16px 30px rgba(0, 0, 0, 0.35);
+        }
+
+        .dropdown-item {
+            color: var(--pa-muted);
+        }
+
+        .dropdown-item:hover {
+            color: var(--pa-heading);
+            background: rgba(0, 104, 55, 0.22);
+        }
+
+        .pa-main {
+            padding-top: 6.2rem;
+            padding-bottom: 2.5rem;
+        }
+
+        .pa-content-shell {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1.25rem 1rem;
+            animation: smoothIn .35s ease-in;
+        }
+
+        @@keyframes smoothIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .pa-footer {
+            margin-top: auto;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(10, 14, 21, 0.66);
+            position: relative;
+        }
+
+        .pa-footer::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(0, 104, 55, 0.9), transparent);
+            box-shadow: 0 0 14px rgba(0, 104, 55, 0.6);
+        }
+
+        .pa-footer-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1.1rem 1rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            color: var(--pa-muted);
+            font-size: 0.92rem;
+        }
+
+        .pa-popia {
+            border-radius: 999px;
+            border: 1px solid rgba(0, 104, 55, 0.45);
+            background: rgba(0, 104, 55, 0.18);
+            color: #90e7b8;
+            font-weight: 600;
+            padding: 0.36rem 0.8rem;
+            letter-spacing: 0.02em;
+        }
+
+        @@media (max-width: 991.98px) {
+            .pa-clock {
+                margin: 0.55rem 0;
+                min-width: 0;
+                width: 100%;
+            }
+
+            .pa-content-shell {
+                padding: 1.1rem 0.9rem;
+            }
+        }
+
+        @@media (max-width: 767.98px) {
+            .pa-main {
+                padding-top: 6.9rem;
+            }
+
+            .pa-footer-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .pa-content-shell {
+                padding: 1rem 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-lg pa-navbar">
+            <div class="container-fluid px-3 px-lg-4">
+                <a class="navbar-brand pa-brand" asp-area="" asp-controller="Home" asp-action="Index">PA INFRASTRUCTURE PORTAL</a>
+                <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#paTopNav" aria-controls="paTopNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="paTopNav">
+                    <div class="ms-lg-auto d-flex flex-column flex-lg-row align-items-lg-center gap-2 gap-lg-3 w-100 w-lg-auto pt-2 pt-lg-0">
+                        <div id="paClock" class="pa-clock"></div>
+                        @{ 
+                            var latestConfig = DbContext.SystemConfigurations.AsNoTracking().OrderByDescending(c => c.UpdatedAt).FirstOrDefault();
+                            var whatsappLink = string.IsNullOrWhiteSpace(latestConfig?.WhatsAppChatLink) ? "https://wa.me/0000000000" : latestConfig.WhatsAppChatLink;
+                        }
+                        <a class="pa-whatsapp-button" href="@whatsappLink" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp contact link">
+                            <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+                                <path d="M19.11 17.05c-.27-.14-1.59-.78-1.83-.87-.24-.09-.42-.14-.6.14-.18.27-.69.87-.84 1.05-.16.18-.31.2-.58.07-.27-.14-1.12-.41-2.13-1.3-.79-.7-1.32-1.56-1.47-1.83-.15-.27-.02-.42.11-.56.11-.11.27-.31.41-.47.14-.16.18-.27.27-.45.09-.18.04-.33-.02-.47-.07-.14-.6-1.44-.82-1.97-.22-.52-.44-.45-.6-.46-.15 0-.33-.01-.51-.01-.18 0-.47.07-.72.33-.24.27-.93.9-.93 2.2 0 1.29.95 2.54 1.08 2.72.14.18 1.86 2.84 4.5 3.98.63.27 1.11.43 1.49.55.63.2 1.2.17 1.65.1.5-.07 1.59-.65 1.82-1.29.22-.64.22-1.18.16-1.29-.07-.11-.24-.18-.51-.31zM16 3C8.83 3 3 8.68 3 15.67c0 2.24.61 4.43 1.77 6.34L3 29l7.21-1.68c1.84.98 3.92 1.49 6.01 1.49h.01C24.18 28.81 29 23.13 29 16.14 29 9.15 23.17 3 16 3zm0 23.06h-.01c-1.93 0-3.82-.51-5.47-1.48l-.39-.23-4.28.99.91-4.15-.25-.42a9.7 9.7 0 0 1-1.48-5.15C4.98 9.88 9.84 5.2 16 5.2c5.96 0 10.82 4.94 10.82 10.94 0 6.02-4.86 10.92-10.82 10.92z"/>
+                            </svg>
+                        </a>
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            @if (User.IsInRole("PA Member"))
+                            {
+                                <span id="paNotifyBadge" class="pa-notify">No new alerts</span>
+                            }
+                            <div class="dropdown">
+                                <button class="btn pa-profile-badge dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    @User.Identity.Name (@User.FindFirst("UserRole")?.Value)
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" asp-area="" asp-controller="Home" asp-action="Index">Dashboard</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-controller="Home" asp-action="StatsHub">Stats Hub</a></li>
+                                    @if (User.IsInRole("Server Admin") || User.IsInRole("Admin") || User.IsInRole("PA Member"))
+                                    {
+                                        <li><a class="dropdown-item" asp-area="" asp-controller="Home" asp-action="CommandView">PA Oversight Tab</a></li>
+                                    }
+                                    @if (User.IsInRole("Server Admin") || User.IsInRole("Admin"))
+                                    {
+                                        <li><a class="dropdown-item" asp-area="" asp-controller="Account" asp-action="CreateManagedUser">Create Admin/PA User</a></li>
+                                        <li><a class="dropdown-item" asp-area="" asp-controller="Account" asp-action="ManageUsers">Staff Management</a></li>
+                                        <li><a class="dropdown-item" asp-area="" asp-controller="Account" asp-action="ManageResidents">Resident Management</a></li>
+                                    }
+                                    @if (User.IsInRole("Server Admin"))
+                                    {
+                                        <li><a class="dropdown-item" asp-area="" asp-controller="SystemConfiguration" asp-action="Index">System Configuration</a></li>
+                                    }
+                                    @if (User.IsInRole("Server Admin") || User.IsInRole("Admin") || User.IsInRole("PA Member"))
+                                    {
+                                        <li><a class="dropdown-item" asp-area="" asp-controller="Home" asp-action="Residents">Residents List Export</a></li>
+                                    }
+                                    <li><a class="dropdown-item" asp-area="" asp-controller="Account" asp-action="EditMyUser">Edit My User</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-controller="Home" asp-action="Privacy">Compliance</a></li>
+                                    <li>
+                                        <form asp-controller="Account" asp-action="Logout" method="post" class="px-2 py-1">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="dropdown-item">Sign Out</button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                        }
+                        else
+                        {
+                            <a class="btn pa-profile-badge" asp-controller="Account" asp-action="Login">Sign In</a>
+                            <a class="btn pa-profile-badge" asp-controller="Account" asp-action="Register">Register</a>
+                        }
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="pa-main">
+        <div class="pa-content-shell">
+            @RenderBody()
+        </div>
+    </main>
+
+    <footer class="pa-footer">
+        <div class="pa-footer-content">
+            <span>&copy; @DateTime.UtcNow.Year Patriotic Alliance Executive Infrastructure Portal. All rights reserved.</span>
+            <span class="pa-popia">POPIA Compliant Data System</span>
+        </div>
+    </footer>
+
+    <div id="liveAlert" class="pa-live-alert"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+    <script>
+        (function () {
+            const clockElement = document.getElementById("paClock");
+            const formatClock = () => {
+                const now = new Date();
+                clockElement.textContent = now.toLocaleString("en-ZA", {
+                    weekday: "short",
+                    year: "numeric",
+                    month: "short",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                    hour12: false
+                });
+            };
+            formatClock();
+            setInterval(formatClock, 1000);
+
+            const badge = document.getElementById("paNotifyBadge");
+            const alertBox = document.getElementById("liveAlert");
+            if (!window.signalR || (!badge && !alertBox)) {
+                return;
+            }
+
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl("/hubs/notifications")
+                .withAutomaticReconnect()
+                .build();
+
+            connection.on("ReceiveNotification", function (eventPayload) {
+                const msg = eventPayload?.message || "New alert received.";
+                if (badge) {
+                    badge.textContent = "New complaint alert";
+                }
+
+                if (alertBox) {
+                    alertBox.textContent = msg;
+                    alertBox.style.display = "block";
+                    setTimeout(function () {
+                        alertBox.style.display = "none";
+                    }, 5000);
+                }
+            });
+
+            connection.start().catch(function () { });
+        })();
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

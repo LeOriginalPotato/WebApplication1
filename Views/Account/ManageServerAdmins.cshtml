@@ -1,0 +1,175 @@
+@model TheSolution.PAPortal.Web.Models.Account.ManageServerAdminsViewModel
+@{
+    ViewData["Title"] = "Manage Server Admins";
+}
+
+<style>
+    .staff-shell {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .staff-banner {
+        background: rgba(20, 27, 39, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 16px;
+        padding: 1.2rem;
+        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.3);
+    }
+
+    .staff-banner h1 {
+        color: #fff;
+        margin: 0 0 .35rem;
+        font-size: 1.35rem;
+        font-weight: 700;
+    }
+
+    .staff-banner p {
+        color: #a0aec0;
+        margin: 0;
+    }
+
+    .feedback {
+        border-radius: 10px;
+        padding: .7rem .85rem;
+    }
+
+    .feedback-success {
+        background: rgba(0, 191, 110, 0.16);
+        color: #a8f2ca;
+        border: 1px solid rgba(0, 191, 110, 0.45);
+    }
+
+    .feedback-error {
+        background: rgba(255, 141, 161, 0.12);
+        color: #ffd0da;
+        border: 1px solid rgba(255, 141, 161, 0.45);
+    }
+
+    .staff-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1rem;
+    }
+
+    .staff-card {
+        background: rgba(22, 27, 39, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 16px;
+        padding: 1rem;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.22);
+    }
+
+    .staff-card h2 {
+        color: #fff;
+        font-size: 1.05rem;
+        margin: 0 0 .7rem;
+    }
+
+    .form-label {
+        color: #d8e1ef;
+        font-weight: 600;
+    }
+
+    .form-control {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: #fff;
+    }
+
+    .form-control:focus {
+        border-color: #ffcc00;
+        box-shadow: 0 0 0 0.2rem rgba(255, 204, 0, 0.18);
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+    }
+
+    .btn-gold {
+        border: 1px solid #ffcc00;
+        background: #ffcc00;
+        color: #1a1f2c;
+        font-weight: 800;
+        border-radius: 999px;
+        padding: .6rem 1rem;
+    }
+
+    .btn-gold:hover {
+        background: #ffe066;
+        color: #1a1f2c;
+    }
+</style>
+
+<section class="staff-shell">
+    <div class="staff-banner">
+        <h1>Manage Server Admins</h1>
+        <p>Only Server Admin users can view and edit Server Admin accounts.</p>
+    </div>
+
+    @if (TempData["ServerAdminUpdateSuccess"] is string success)
+    {
+        <div class="feedback feedback-success">@success</div>
+    }
+
+    @if (TempData["ServerAdminUpdateError"] is string error)
+    {
+        <div class="feedback feedback-error">@error</div>
+    }
+
+    @if (!Model.Users.Any())
+    {
+        <div class="feedback feedback-error">No Server Admin accounts were found.</div>
+    }
+    else
+    {
+        <div class="staff-grid">
+            @foreach (var user in Model.Users)
+            {
+                <form asp-action="UpdateServerAdminUser" asp-controller="Account" method="post" class="staff-card">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="UserID" value="@user.UserID" />
+                    <h2>@user.FirstName @user.LastName</h2>
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <label class="form-label" for="Username_@user.UserID">Username</label>
+                            <input id="Username_@user.UserID" name="Username" class="form-control" value="@user.Username" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="FirstName_@user.UserID">First Name</label>
+                            <input id="FirstName_@user.UserID" name="FirstName" class="form-control" value="@user.FirstName" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="LastName_@user.UserID">Surname</label>
+                            <input id="LastName_@user.UserID" name="LastName" class="form-control" value="@user.LastName" required />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="PhysicalAddress_@user.UserID">Physical Address</label>
+                            <input id="PhysicalAddress_@user.UserID" name="PhysicalAddress" class="form-control" value="@user.PhysicalAddress" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="EmailAddress_@user.UserID">Email Address</label>
+                            <input id="EmailAddress_@user.UserID" name="EmailAddress" class="form-control" value="@user.EmailAddress" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="CellNumber_@user.UserID">Phone Number</label>
+                            <input id="CellNumber_@user.UserID" name="CellNumber" class="form-control" value="@user.CellNumber" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="NewPassword_@user.UserID">New Password</label>
+                            <input id="NewPassword_@user.UserID" name="NewPassword" class="form-control" type="password" placeholder="Leave blank to keep current password" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="ConfirmNewPassword_@user.UserID">Confirm New Password</label>
+                            <input id="ConfirmNewPassword_@user.UserID" name="ConfirmNewPassword" class="form-control" type="password" placeholder="Confirm only if changing it" />
+                        </div>
+                        <div class="col-12">
+                            <div class="feedback feedback-error">Role locked to Server Admin</div>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-gold w-100">Save Changes</button>
+                        </div>
+                    </div>
+                </form>
+            }
+        </div>
+    }
+</section>

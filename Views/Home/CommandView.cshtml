@@ -1,0 +1,141 @@
+@{
+    ViewData["Title"] = "Councillor & MMC Oversight";
+}
+
+<style>
+    .oversight-wrap { display:grid; gap:1rem; color:#a0aec0; }
+    .panel { background:rgba(20,27,39,.94); border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:1rem; box-shadow:0 10px 24px rgba(0,0,0,.28); }
+    .panel h2 { color:#fff; font-size:1.05rem; font-weight:700; margin-bottom:.7rem; }
+    .filters { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.8rem; }
+    .ticket-list { display:grid; gap:.7rem; }
+    .ticket-card { border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:.85rem; background:rgba(255,255,255,.02); }
+    .ticket-head { display:flex; justify-content:space-between; gap:.6rem; flex-wrap:wrap; }
+    .ticket-ref { color:#fff; font-weight:700; }
+    .ticket-meta { font-size:.88rem; }
+    .badge-status { border-radius:999px; border:1px solid rgba(68,170,255,.5); background:rgba(68,170,255,.14); color:#8fd9ff; padding:.2rem .6rem; font-size:.78rem; font-weight:700; }
+    .drawer { margin-top:.7rem; padding-top:.7rem; border-top:1px solid rgba(255,255,255,.1); display:grid; gap:.7rem; }
+    .gps { color:#dce7f5; font-weight:600; }
+    .findings { width:100%; min-height:85px; resize:vertical; border-radius:10px; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:#fff; padding:.55rem; }
+    .check-inline { display:flex; align-items:center; gap:.45rem; }
+    .btn-gold { border:1px solid #ffcc00; background:#ffcc00; color:#1a1f2c; font-weight:800; border-radius:999px; padding:.55rem .9rem; }
+    .btn-gold:hover { background:#ffe066; }
+    .success { color:#8bf0bc; font-weight:700; font-size:.9rem; }
+    @@media (max-width:767.98px){ .filters { grid-template-columns:1fr; } }
+</style>
+
+<section class="oversight-wrap">
+    <section class="panel">
+        <h2>Oversight Tab</h2>
+        <div class="filters">
+            <div>
+                <label class="form-label text-white" for="wardFilter">Ward / Sector</label>
+                <select id="wardFilter" class="form-select">
+                    <option value="all">All Sectors</option>
+                    <option value="mohlakeng">Mohlakeng</option>
+                    <option value="rural">Rural Holdings</option>
+                    <option value="cbd">CBD Core</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label text-white" for="urgencyFilter">Service Urgency Score</label>
+                <select id="urgencyFilter" class="form-select">
+                    <option value="all">All</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                </select>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <h2>All Logged Community Complaints</h2>
+        <div id="oversightMessage"></div>
+        <div id="ticketList" class="ticket-list"></div>
+    </section>
+</section>
+
+<script>
+    (function () {
+        const list = document.getElementById('ticketList');
+        const message = document.getElementById('oversightMessage');
+
+        const renderTicket = (ticket) => {
+            const card = document.createElement('article');
+            card.className = 'ticket-card';
+            card.innerHTML = `
+                <div class="ticket-head">
+                    <div>
+                        <div class="ticket-ref">${ticket.ticketReference}</div>
+                        <div class="ticket-meta">${new Date(ticket.dateLogged).toLocaleString()} · ${ticket.category}</div>
+                    </div>
+                    <span class="badge-status">${ticket.status}</span>
+                </div>
+                <div class="drawer">
+                    <div class="gps">GPS: ${ticket.latitude}, ${ticket.longitude}</div>
+                    <div><strong>Resident:</strong> ${ticket.resident}</div>
+                    <div><strong>Address:</strong> ${ticket.physicalAddress}</div>
+                    <div>
+                        <label class="form-label text-white">Inspection Findings / Status Report</label>
+                        <textarea class="findings">${ticket.inspectionFindings ?? ''}</textarea>
+                    </div>
+                    <label class="check-inline"><input type="checkbox" class="dispatch" ${ticket.teamDispatched ? 'checked' : ''} /> Team Dispatched</label>
+                    <label class="check-inline"><input type="checkbox" class="resolve" ${ticket.isResolved ? 'checked disabled' : ''} /> Mark as Resolved</label>
+                    <button type="button" class="btn-gold save">Save Workflow Update</button>
+                    <div class="result"></div>
+                </div>`;
+
+            const saveButton = card.querySelector('.save');
+            const findingsEl = card.querySelector('.findings');
+            const dispatchEl = card.querySelector('.dispatch');
+            const resolveEl = card.querySelector('.resolve');
+            const resultEl = card.querySelector('.result');
+
+            saveButton.addEventListener('click', async function () {
+                const payload = {
+                    teamDispatched: dispatchEl.checked,
+                    inspectionFindings: findingsEl.value,
+                    markResolved: resolveEl.checked
+                };
+
+                const response = await fetch(`/api/oversight/complaints/${ticket.faultID}/workflow`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    const updated = await response.json();
+                    card.querySelector('.badge-status').textContent = updated.status;
+                    if (updated.isResolved) {
+                        resolveEl.disabled = true;
+                        dispatchEl.disabled = true;
+                        findingsEl.disabled = true;
+                        saveButton.disabled = true;
+                    }
+                    resultEl.innerHTML = '<span class="success">Workflow updated.</span>';
+                } else {
+                    resultEl.innerHTML = '<span style="color:#ff8da1;">Update failed.</span>';
+                }
+            });
+
+            list.appendChild(card);
+        };
+
+        const loadComplaints = async () => {
+            message.textContent = 'Loading complaints...';
+            const response = await fetch('/api/oversight/complaints');
+            if (!response.ok) {
+                message.innerHTML = '<span style="color:#ff8da1;">Unable to load complaints.</span>';
+                return;
+            }
+
+            const complaints = await response.json();
+            list.innerHTML = '';
+            message.textContent = `${complaints.length} complaints loaded.`;
+            complaints.forEach(renderTicket);
+        };
+
+        loadComplaints();
+    })();
+</script>

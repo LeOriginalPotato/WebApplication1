@@ -1,0 +1,65 @@
+@model TheSolution.PAPortal.Web.Models.Account.RegisterResidentViewModel
+@{
+    ViewData["Title"] = "Resident Registration";
+}
+
+<section style="max-width:680px;margin:1.2rem auto;background:rgba(20,27,39,.95);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:1.2rem;box-shadow:0 14px 30px rgba(0,0,0,.32);">
+    <h1 style="color:#fff;font-size:1.4rem;font-weight:700;">Create Resident Account</h1>
+    <p style="color:#a0aec0;">Complete all required profile fields to unlock complaint submission.</p>
+
+    <form asp-action="Register" asp-controller="Account" method="post">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="Username" class="form-label text-white"></label>
+                <input asp-for="Username" class="form-control" />
+                <span asp-validation-for="Username" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="CellNumber" class="form-label text-white"></label>
+                <input asp-for="CellNumber" class="form-control" />
+                <span asp-validation-for="CellNumber" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="FirstName" class="form-label text-white"></label>
+                <input asp-for="FirstName" class="form-control" />
+                <span asp-validation-for="FirstName" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="LastName" class="form-label text-white"></label>
+                <input asp-for="LastName" class="form-control" />
+                <span asp-validation-for="LastName" class="text-danger"></span>
+            </div>
+            <div class="col-12">
+                <label asp-for="PhysicalAddress" class="form-label text-white"></label>
+                <input asp-for="PhysicalAddress" class="form-control" />
+                <span asp-validation-for="PhysicalAddress" class="text-danger"></span>
+            </div>
+            <div class="col-12">
+                <label asp-for="EmailAddress" class="form-label text-white"></label>
+                <input asp-for="EmailAddress" class="form-control" />
+                <span asp-validation-for="EmailAddress" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Password" class="form-label text-white"></label>
+                <input asp-for="Password" class="form-control" />
+                <span asp-validation-for="Password" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="ConfirmPassword" class="form-label text-white"></label>
+                <input asp-for="ConfirmPassword" class="form-control" />
+                <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+            </div>
+            <div class="col-12 d-grid">
+                <button type="submit" style="border:1px solid #ffcc00;background:#ffcc00;color:#1a1f2c;font-weight:800;border-radius:999px;padding:.6rem 1rem;">Register Resident Account</button>
+            </div>
+        </div>
+    </form>
+
+    <div style="margin-top:1rem;color:#a0aec0;">Already registered? <a asp-action="Login" asp-controller="Account">Sign in</a></div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

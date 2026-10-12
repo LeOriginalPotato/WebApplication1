@@ -1,0 +1,63 @@
+@{
+    ViewData["Title"] = "Residents Directory";
+}
+
+<section style="display:grid;gap:1rem;">
+    <div style="background:rgba(20,27,39,.94);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:1rem;box-shadow:0 10px 24px rgba(0,0,0,.28);">
+        <h1 style="color:#fff;font-size:1.25rem;font-weight:700;">Residents List</h1>
+        <p style="color:#a0aec0;">PA Members can review all registered residents and export the directory.</p>
+        <a href="/api/residents/export" style="display:inline-block;border:1px solid #ffcc00;background:#ffcc00;color:#1a1f2c;font-weight:800;border-radius:999px;padding:.55rem .9rem;text-decoration:none;">Export Residents CSV</a>
+    </div>
+
+    <div style="background:rgba(20,27,39,.94);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:1rem;box-shadow:0 10px 24px rgba(0,0,0,.28);overflow:auto;">
+        <table style="width:100%;border-collapse:collapse;color:#d2dbe8;min-width:860px;">
+            <thead>
+                <tr>
+                    <th style="text-align:left;padding:.55rem;border-bottom:1px solid rgba(255,255,255,.12);">Username</th>
+                    <th style="text-align:left;padding:.55rem;border-bottom:1px solid rgba(255,255,255,.12);">Name</th>
+                    <th style="text-align:left;padding:.55rem;border-bottom:1px solid rgba(255,255,255,.12);">Address</th>
+                    <th style="text-align:left;padding:.55rem;border-bottom:1px solid rgba(255,255,255,.12);">Email</th>
+                    <th style="text-align:left;padding:.55rem;border-bottom:1px solid rgba(255,255,255,.12);">Phone</th>
+                    <th style="text-align:left;padding:.55rem;border-bottom:1px solid rgba(255,255,255,.12);">Registered</th>
+                </tr>
+            </thead>
+            <tbody id="residentRows"></tbody>
+        </table>
+    </div>
+</section>
+
+<script>
+    (function () {
+        const tbody = document.getElementById('residentRows');
+
+        const loadResidents = async () => {
+            const response = await fetch('/api/residents');
+            if (!response.ok) {
+                tbody.innerHTML = "<tr><td colspan='6' style='padding:.6rem;color:#ff8da1;'>Unable to load residents list.</td></tr>";
+                return;
+            }
+
+            const residents = await response.json();
+            tbody.innerHTML = '';
+
+            if (!residents.length) {
+                tbody.innerHTML = "<tr><td colspan='6' style='padding:.6rem;color:#a0aec0;'>No residents found.</td></tr>";
+                return;
+            }
+
+            residents.forEach((resident) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td style="padding:.55rem;border-bottom:1px solid rgba(255,255,255,.07);">${resident.username}</td>
+                    <td style="padding:.55rem;border-bottom:1px solid rgba(255,255,255,.07);">${resident.firstName} ${resident.lastName}</td>
+                    <td style="padding:.55rem;border-bottom:1px solid rgba(255,255,255,.07);">${resident.physicalAddress}</td>
+                    <td style="padding:.55rem;border-bottom:1px solid rgba(255,255,255,.07);">${resident.emailAddress ?? ''}</td>
+                    <td style="padding:.55rem;border-bottom:1px solid rgba(255,255,255,.07);">${resident.cellNumber}</td>
+                    <td style="padding:.55rem;border-bottom:1px solid rgba(255,255,255,.07);">${new Date(resident.createdAt).toLocaleString()}</td>`;
+                tbody.appendChild(row);
+            });
+        };
+
+        loadResidents();
+    })();
+</script>

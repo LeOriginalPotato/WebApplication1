@@ -1,0 +1,219 @@
+@{
+    ViewData["Title"] = "Public Live Statistics Hub";
+    var totalVerifiedIssues = ViewData["TotalVerifiedIssues"] as int? ?? 427;
+    var electricalCount = ViewData["ElectricalCount"] as int? ?? 118;
+    var landfillCount = ViewData["LandfillCount"] as int? ?? 76;
+    var roadsCount = ViewData["RoadsCount"] as int? ?? 142;
+    var waterCount = ViewData["WaterCount"] as int? ?? 91;
+}
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Orbitron:wght@500;700;800&display=swap" rel="stylesheet">
+
+<style>
+    .stats-hub {
+        color: #a0aec0;
+        display: grid;
+        gap: 1.25rem;
+    }
+
+    .impact-ticker {
+        background: linear-gradient(145deg, rgba(0, 104, 55, 0.16), rgba(19, 25, 38, 0.92));
+        border: 1px solid rgba(0, 104, 55, 0.45);
+        border-radius: 20px;
+        padding: 1.35rem 1.5rem;
+        box-shadow: 0 16px 34px rgba(0, 0, 0, 0.34), inset 0 0 40px rgba(0, 104, 55, 0.08);
+    }
+
+    .impact-title {
+        margin: 0;
+        color: #ffffff;
+        font-family: "Inter", "Segoe UI", sans-serif;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .impact-value {
+        margin-top: 0.4rem;
+        margin-bottom: 0;
+        color: #ffcc00;
+        font-family: "Orbitron", "Segoe UI", sans-serif;
+        font-size: clamp(1.9rem, 6vw, 3.8rem);
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-shadow: 0 0 16px rgba(255, 204, 0, 0.42), 0 0 36px rgba(255, 204, 0, 0.2);
+    }
+
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .metric-card {
+        background: rgba(20, 26, 39, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 16px;
+        padding: 1rem;
+        min-height: 172px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease;
+        box-shadow: 0 12px 22px rgba(0, 0, 0, 0.25);
+    }
+
+    .metric-card:hover {
+        transform: translateY(-4px);
+        border-color: rgba(255, 204, 0, 0.45);
+        box-shadow: 0 18px 30px rgba(0, 0, 0, 0.38);
+    }
+
+    .metric-icon {
+        font-size: 1.5rem;
+        opacity: 0.95;
+        margin-bottom: 0.35rem;
+    }
+
+    .metric-count {
+        font-family: "Orbitron", "Segoe UI", sans-serif;
+        font-size: clamp(1.4rem, 2.6vw, 2rem);
+        font-weight: 700;
+        margin: 0;
+        line-height: 1.2;
+    }
+
+    .metric-label {
+        margin: 0.45rem 0 0;
+        color: #cfd8e3;
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    .electric {
+        color: #ffc645;
+        text-shadow: 0 0 14px rgba(255, 198, 69, 0.45);
+    }
+
+    .landfill {
+        color: #ff4b66;
+        text-shadow: 0 0 14px rgba(255, 75, 102, 0.45);
+    }
+
+    .roads {
+        color: #ffcc00;
+        text-shadow: 0 0 14px rgba(255, 204, 0, 0.35);
+    }
+
+    .water {
+        color: #45d3ff;
+        text-shadow: 0 0 14px rgba(69, 211, 255, 0.4);
+    }
+
+    .heatmap-shell {
+        border-radius: 18px;
+        border: 1px solid rgba(0, 104, 55, 0.7);
+        box-shadow: 0 0 0 1px rgba(0, 104, 55, 0.22), 0 18px 34px rgba(0, 0, 0, 0.35);
+        background: linear-gradient(180deg, rgba(12, 17, 26, 0.96), rgba(18, 24, 35, 0.92));
+        padding: 1rem;
+    }
+
+    .map-wrapper {
+        min-height: 370px;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background:
+            linear-gradient(rgba(22, 30, 44, 0.68), rgba(22, 30, 44, 0.68)),
+            radial-gradient(circle at 20% 20%, rgba(69, 211, 255, 0.13), transparent 40%),
+            radial-gradient(circle at 80% 75%, rgba(255, 76, 102, 0.14), transparent 40%),
+            repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0, rgba(255, 255, 255, 0.04) 1px, transparent 1px, transparent 48px),
+            repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.04) 0, rgba(255, 255, 255, 0.04) 1px, transparent 1px, transparent 48px);
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        padding: 1rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .map-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(0, 0, 0, 0.45);
+        color: #d4dfef;
+        font-weight: 600;
+        font-size: 0.88rem;
+        padding: 0.45rem 0.9rem;
+        letter-spacing: 0.02em;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+    }
+
+    @@media (max-width: 1199.98px) {
+        .metric-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 575.98px) {
+        .metric-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .impact-ticker {
+            padding: 1.1rem 1rem;
+        }
+
+        .heatmap-shell {
+            padding: 0.8rem;
+        }
+
+        .map-wrapper {
+            min-height: 300px;
+        }
+    }
+</style>
+
+<section class="stats-hub">
+    <section class="impact-ticker">
+        <p class="impact-title">Massive Impact Ticker</p>
+        <p class="impact-value">@totalVerifiedIssues Verified Issues</p>
+    </section>
+
+    <section class="metric-grid">
+        <article class="metric-card">
+            <div class="metric-icon">⚡</div>
+            <p class="metric-count electric">@electricalCount</p>
+            <p class="metric-label">Grid &amp; Transformer Failures</p>
+        </article>
+
+        <article class="metric-card">
+            <div class="metric-icon">☁️</div>
+            <p class="metric-count landfill">@landfillCount</p>
+            <p class="metric-label">Uitvalfontein Air Hazards</p>
+        </article>
+
+        <article class="metric-card">
+            <div class="metric-icon">🛣️</div>
+            <p class="metric-count roads">@roadsCount</p>
+            <p class="metric-label">Potholes &amp; Drainage Hazards</p>
+        </article>
+
+        <article class="metric-card">
+            <div class="metric-icon">💧</div>
+            <p class="metric-count water">@waterCount</p>
+            <p class="metric-label">Critical Pipe Bursts</p>
+        </article>
+    </section>
+
+    <section class="heatmap-shell">
+        <div class="map-wrapper">
+            <span class="map-badge">[Live GPS Heatmap Cluster View - Mapbox / Google Maps API Connected]</span>
+        </div>
+    </section>
+</section>

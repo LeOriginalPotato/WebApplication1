@@ -1,0 +1,68 @@
+@model TheSolution.PAPortal.Web.Models.Account.EditMyUserViewModel
+@{
+    ViewData["Title"] = "Edit My User";
+}
+
+<section style="max-width:760px;margin:1.2rem auto;background:rgba(20,27,39,.95);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:1.2rem;box-shadow:0 14px 30px rgba(0,0,0,.32);">
+    <h1 style="color:#fff;font-size:1.35rem;font-weight:700;">Edit My User</h1>
+    <p style="color:#a0aec0;">Update your profile details. You can also set a new password.</p>
+
+    @if (TempData["ProfileUpdated"] is string msg)
+    {
+        <div style="border:1px solid rgba(0,191,110,.5);background:rgba(0,191,110,.16);color:#a8f2ca;border-radius:10px;padding:.6rem .8rem;margin-bottom:.8rem;">@msg</div>
+    }
+
+    <form asp-action="EditMyUser" asp-controller="Account" method="post">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="Username" class="form-label text-white"></label>
+                <input asp-for="Username" class="form-control" />
+                <span asp-validation-for="Username" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="CellNumber" class="form-label text-white"></label>
+                <input asp-for="CellNumber" class="form-control" />
+                <span asp-validation-for="CellNumber" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="FirstName" class="form-label text-white"></label>
+                <input asp-for="FirstName" class="form-control" />
+                <span asp-validation-for="FirstName" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="LastName" class="form-label text-white"></label>
+                <input asp-for="LastName" class="form-control" />
+                <span asp-validation-for="LastName" class="text-danger"></span>
+            </div>
+            <div class="col-12">
+                <label asp-for="PhysicalAddress" class="form-label text-white"></label>
+                <input asp-for="PhysicalAddress" class="form-control" />
+                <span asp-validation-for="PhysicalAddress" class="text-danger"></span>
+            </div>
+            <div class="col-12">
+                <label asp-for="EmailAddress" class="form-label text-white"></label>
+                <input asp-for="EmailAddress" class="form-control" />
+                <span asp-validation-for="EmailAddress" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="NewPassword" class="form-label text-white"></label>
+                <input asp-for="NewPassword" class="form-control" />
+                <span asp-validation-for="NewPassword" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="ConfirmNewPassword" class="form-label text-white"></label>
+                <input asp-for="ConfirmNewPassword" class="form-control" />
+                <span asp-validation-for="ConfirmNewPassword" class="text-danger"></span>
+            </div>
+            <div class="col-12 d-grid">
+                <button type="submit" style="border:1px solid #ffcc00;background:#ffcc00;color:#1a1f2c;font-weight:800;border-radius:999px;padding:.6rem 1rem;">Save My Profile</button>
+            </div>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

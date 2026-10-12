@@ -1,0 +1,112 @@
+@model TheSolution.PAPortal.Web.Models.Account.LoginViewModel
+@{
+    ViewData["Title"] = "Sign In";
+}
+
+<style>
+    .login-shell {
+        max-width: 460px;
+        margin: 1.2rem auto;
+        background: rgba(20, 27, 39, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 16px;
+        padding: 1.3rem;
+        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.3);
+    }
+
+    .login-title {
+        color: #ffffff;
+        font-size: 1.35rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .login-subtitle {
+        color: #a0aec0;
+        margin-bottom: 1rem;
+    }
+
+    .form-label {
+        color: #d8e1ef;
+        font-weight: 600;
+    }
+
+    .form-control {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: #ffffff;
+    }
+
+    .form-control:focus {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: #ffcc00;
+        box-shadow: 0 0 0 0.2rem rgba(255, 204, 0, 0.2);
+        color: #ffffff;
+    }
+
+    .btn-gold {
+        width: 100%;
+        border: 1px solid #ffcc00;
+        background: #ffcc00;
+        color: #1a1f2c;
+        font-weight: 800;
+        border-radius: 999px;
+        padding: 0.6rem 1rem;
+    }
+
+    .btn-gold:hover {
+        background: #ffe066;
+        color: #1a1f2c;
+    }
+
+    .test-users {
+        margin-top: 1rem;
+        background: rgba(0, 104, 55, 0.12);
+        border: 1px solid rgba(0, 104, 55, 0.35);
+        border-radius: 12px;
+        padding: 0.8rem;
+        font-size: 0.9rem;
+        color: #cde9dc;
+    }
+
+    .validation-summary-errors ul {
+        margin: 0;
+        padding-left: 1.2rem;
+    }
+</style>
+
+<section class="login-shell">
+    <h1 class="login-title">Portal Sign In</h1>
+    <p class="login-subtitle">Use your assigned test profile to access resident reporting tools.</p>
+
+    <form asp-action="Login" asp-controller="Account" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="ReturnUrl" />
+
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+        <div class="mb-3">
+            <label asp-for="EmailAddress" class="form-label"></label>
+            <input asp-for="EmailAddress" class="form-control" />
+            <span asp-validation-for="EmailAddress" class="text-danger"></span>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="Password" class="form-label"></label>
+            <input asp-for="Password" class="form-control" />
+            <span asp-validation-for="Password" class="text-danger"></span>
+        </div>
+
+        <div class="form-check mb-3">
+            <input class="form-check-input" asp-for="RememberMe" />
+            <label class="form-check-label" asp-for="RememberMe"></label>
+        </div>
+
+        <button type="submit" class="btn btn-gold">Sign In Securely</button>
+    </form>
+
+    </section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
