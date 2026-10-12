@@ -80,26 +80,46 @@ app.use((req, res, next) => {
   next();
 });
 
-function formatClock() {
-  return `<div class="site-clock" id="siteClock"></div>`;
+function buildMenuItems(user) {
+  const role = user?.role || '';
+  const items = [
+    { href: '/', label: 'Dashboard' },
+    { href: '/privacy', label: 'Compliance' }
+  ];
+
+  if (role === 'Server Admin' || role === 'Admin' || role === 'PA Member') {
+    items.splice(1, 0,
+      { href: '/command-view', label: 'PA Oversight Tab' },
+      { href: '/stats-hub', label: 'Stats Hub' },
+      { href: '/residents', label: 'Residents List Export' }
+    );
+  }
+
+  if (role === 'Server Admin') {
+    items.splice(4, 0, { href: '/setup', label: 'System Configuration' });
+  }
+
+  return items;
 }
 
 function navMarkup(user) {
+  const menuLinks = buildMenuItems(user)
+    .map((item) => `<a href="${item.href}">${item.label}</a>`)
+    .join('');
+
   return `
     <div class="site-nav-wrap">
       <div class="site-profile-badge">${user.displayName} (${user.role})</div>
       <div class="site-clock" id="siteClock"></div>
-      <nav class="site-nav">
-        <a href="/">Dashboard</a>
-        <a href="/command-view">PA Oversight Tab</a>
-        <a href="/stats-hub">Stats Hub</a>
-        <a href="/residents">Residents List Export</a>
-        <a href="/setup">System Configuration</a>
-        <a href="/privacy">Compliance</a>
-        <form method="post" action="/logout" style="display:inline; margin:0;">
-          <button type="submit">Sign Out</button>
-        </form>
-      </nav>
+      <details class="site-menu">
+        <summary class="site-menu-toggle">Portal Menu</summary>
+        <div class="site-menu-panel">
+          ${menuLinks}
+          <form method="post" action="/logout" class="site-menu-form">
+            <button type="submit">Sign Out</button>
+          </form>
+        </div>
+      </details>
     </div>`;
 }
 
@@ -196,6 +216,22 @@ function requireLogin(req, res, next) {
   }
 
   next();
+}
+
+function requireRole(allowedRoles, redirectTarget = '/dashboard') {
+  return (req, res, next) => {
+    if (!req.session.user) {
+      res.redirect(`${loginPath}?returnUrl=${encodeURIComponent(req.originalUrl)}`);
+      return;
+    }
+
+    if (!allowedRoles.includes(req.session.user.role)) {
+      res.redirect(redirectTarget);
+      return;
+    }
+
+    next();
+  };
 }
 
 app.get('/', requireLogin, (req, res) => {
@@ -298,7 +334,7 @@ app.post('/register', requireLogin, (req, res) => {
   sendPage(res, 'Resident Registration', `${portalBody('Resident Registration', 'Registration is a placeholder in this Node.js build.', '<section class="panel" style="margin-top: 1rem;"><p>Registration is available in this Node.js shell and can be connected later.</p></section>')}`, 200, { authenticated: true, user: req.session.user });
 });
 
-app.get('/setup', requireLogin, (req, res) => {
+app.get('/setup', requireRole(['Server Admin']), (req, res) => {
   const body = `
     <section class="hero-block">
       <h1>Setup</h1>
@@ -317,7 +353,7 @@ app.get('/setup', requireLogin, (req, res) => {
   sendPage(res, 'Setup', body, 200, { authenticated: true, user: req.session.user });
 });
 
-app.post('/setup', requireLogin, (req, res) => {
+app.post('/setup', requireRole(['Server Admin']), (req, res) => {
   const body = `
     <section class="hero-block">
       <h1>Setup</h1>
@@ -328,11 +364,11 @@ app.post('/setup', requireLogin, (req, res) => {
   sendPage(res, 'Setup', body, 200, { authenticated: true, user: req.session.user });
 });
 
-app.get('/residents', requireLogin, (req, res) => sendPage(res, 'Residents Directory', portalBody('Residents Directory', 'This page is the Node.js placeholder for resident management and export features.', '<section class="panel" style="margin-top: 1rem;"><p>No resident data is loaded yet in this Node.js phase.</p></section>'), 200, { authenticated: true, user: req.session.user }));
+app.get('/residents', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => sendPage(res, 'Residents Directory', portalBody('Residents Directory', 'This page is the Node.js placeholder for resident management and export features.', '<section class="panel" style="margin-top: 1rem;"><p>No resident data is loaded yet in this Node.js phase.</p></section>'), 200, { authenticated: true, user: req.session.user }));
 
-app.get('/command-view', requireLogin, (req, res) => sendPage(res, 'Councillor & MMC Oversight', portalBody('Councillor & MMC Oversight', 'Operational oversight content can be connected here in the next iteration.', '<section class="grid" style="margin-top: 1rem;"><div class="panel"><h2>Workflow</h2><p>Placeholder for dispatch and inspection actions.</p></div><div class="panel"><h2>Status</h2><p>Placeholder for complaint status updates.</p></div></section>'), 200, { authenticated: true, user: req.session.user }));
+app.get('/command-view', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => sendPage(res, 'Councillor & MMC Oversight', portalBody('Councillor & MMC Oversight', 'Operational oversight content can be connected here in the next iteration.', '<section class="grid" style="margin-top: 1rem;"><div class="panel"><h2>Workflow</h2><p>Placeholder for dispatch and inspection actions.</p></div><div class="panel"><h2>Status</h2><p>Placeholder for complaint status updates.</p></div></section>'), 200, { authenticated: true, user: req.session.user }));
 
-app.get('/stats-hub', requireLogin, (req, res) => sendPage(res, 'Public Live Statistics Hub', portalBody('Public Live Statistics Hub', 'The live stats hub is available as a Node.js page.', '<section class="grid" style="margin-top: 1rem;"><div class="panel"><h2>Total Issues</h2><p>0</p></div><div class="panel"><h2>Electrical</h2><p>0</p></div><div class="panel"><h2>Roads</h2><p>0</p></div><div class="panel"><h2>Water</h2><p>0</p></div></section>'), 200, { authenticated: true, user: req.session.user }));
+app.get('/stats-hub', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => sendPage(res, 'Public Live Statistics Hub', portalBody('Public Live Statistics Hub', 'The live stats hub is available as a Node.js page.', '<section class="grid" style="margin-top: 1rem;"><div class="panel"><h2>Total Issues</h2><p>0</p></div><div class="panel"><h2>Electrical</h2><p>0</p></div><div class="panel"><h2>Roads</h2><p>0</p></div><div class="panel"><h2>Water</h2><p>0</p></div></section>'), 200, { authenticated: true, user: req.session.user }));
 
 app.use((req, res) => {
   if (!req.session.user) {
