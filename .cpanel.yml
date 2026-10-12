@@ -1,4 +1,4 @@
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/paatwork/public_html/
-    - /bin/cp -a php-site/. "$DEPLOYPATH"
+    - export DEPLOYPATH=$HOME/repositories/WebApplication1/
+    - /bin/cp -a . "$DEPLOYPATH"
