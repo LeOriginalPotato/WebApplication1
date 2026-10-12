@@ -195,6 +195,23 @@ a:hover {
   gap: 1rem;
 }
 
+.table-wrap {
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  vertical-align: top;
+}
+
 .panel {
   background: rgba(255, 255, 255, 0.02);
 }

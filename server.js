@@ -91,7 +91,7 @@ function buildMenuItems(user) {
     items.splice(1, 0,
       { href: '/command-view', label: 'PA Oversight Tab' },
       { href: '/stats-hub', label: 'Stats Hub' },
-      { href: '/residents', label: 'Residents List Export' }
+      { href: '/residents', label: 'Residents & Roles' }
     );
   }
 
@@ -100,6 +100,15 @@ function buildMenuItems(user) {
   }
 
   return items;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function navMarkup(user) {
@@ -309,29 +318,102 @@ app.post('/logout', requireLogin, (req, res) => {
   });
 });
 
-app.get('/register', requireLogin, (req, res) => {
+app.get('/register', (req, res) => {
   const body = `
     <section class="hero-block">
       <h1>Resident Registration</h1>
-      <p class="muted">This page mirrors the earlier portal structure and can be expanded for full account creation.</p>
+      <p class="muted">Create a portal account with the details your municipality needs.</p>
     </section>
     <section class="auth-shell" style="margin-top: 1rem;">
       <form method="post" action="/register">
         <div class="grid">
-          <div><label>Username</label><input class="form-control" name="username"></div>
-          <div><label>Email Address</label><input class="form-control" type="email" name="emailAddress"></div>
-          <div><label>First Name</label><input class="form-control" name="firstName"></div>
-          <div><label>Last Name</label><input class="form-control" name="lastName"></div>
+          <div><label>Full Name</label><input class="form-control" name="fullName" required></div>
+          <div><label>Surname</label><input class="form-control" name="surname" required></div>
+          <div><label>Email Address</label><input class="form-control" type="email" name="emailAddress" required></div>
+          <div><label>Number</label><input class="form-control" name="phoneNumber" required></div>
+          <div><label>Address</label><input class="form-control" name="address" required></div>
+          <div><label>Password</label><input class="form-control" type="password" name="password" required></div>
         </div>
         <p style="margin-top: 1rem;"><button class="btn" type="submit">Register</button></p>
       </form>
     </section>`;
 
-  sendPage(res, 'Resident Registration', body, 200, { authenticated: true, user: req.session.user });
+  sendPage(res, 'Resident Registration', body, 200, { authenticated: Boolean(req.session.user), user: req.session.user });
 });
 
-app.post('/register', requireLogin, (req, res) => {
-  sendPage(res, 'Resident Registration', `${portalBody('Resident Registration', 'Registration is a placeholder in this Node.js build.', '<section class="panel" style="margin-top: 1rem;"><p>Registration is available in this Node.js shell and can be connected later.</p></section>')}`, 200, { authenticated: true, user: req.session.user });
+app.post('/register', (req, res) => {
+  const fullName = String(req.body.fullName || '').trim();
+  const surname = String(req.body.surname || '').trim();
+  const emailAddress = String(req.body.emailAddress || '').trim().toLowerCase();
+  const phoneNumber = String(req.body.phoneNumber || '').trim();
+  const address = String(req.body.address || '').trim();
+  const password = String(req.body.password || '').trim();
+
+  if (!fullName || !surname || !emailAddress || !phoneNumber || !address || !password) {
+    const notice = 'Please complete full name, surname, email, number, address, and password.';
+    const body = `
+      <section class="hero-block">
+        <h1>Resident Registration</h1>
+        <p class="muted">Create a portal account with the details your municipality needs.</p>
+      </section>
+      <section class="auth-shell" style="margin-top: 1rem;">
+        <div class="notice-error">${notice}</div>
+        <form method="post" action="/register">
+          <div class="grid">
+            <div><label>Full Name</label><input class="form-control" name="fullName" value="${escapeHtml(fullName)}" required></div>
+            <div><label>Surname</label><input class="form-control" name="surname" value="${escapeHtml(surname)}" required></div>
+            <div><label>Email Address</label><input class="form-control" type="email" name="emailAddress" value="${escapeHtml(emailAddress)}" required></div>
+            <div><label>Number</label><input class="form-control" name="phoneNumber" value="${escapeHtml(phoneNumber)}" required></div>
+            <div><label>Address</label><input class="form-control" name="address" value="${escapeHtml(address)}" required></div>
+            <div><label>Password</label><input class="form-control" type="password" name="password" required></div>
+          </div>
+          <p style="margin-top: 1rem;"><button class="btn" type="submit">Register</button></p>
+        </form>
+      </section>`;
+
+    sendPage(res, 'Resident Registration', body, 400, { authenticated: Boolean(req.session.user), user: req.session.user });
+    return;
+  }
+
+  const existing = users.find((entry) => entry.emailAddress.toLowerCase() === emailAddress);
+  if (existing) {
+    const body = `
+      <section class="hero-block">
+        <h1>Resident Registration</h1>
+        <p class="muted">Create a portal account with the details your municipality needs.</p>
+      </section>
+      <section class="auth-shell" style="margin-top: 1rem;">
+        <div class="notice-error">An account already exists for that email address.</div>
+        <form method="post" action="/register">
+          <div class="grid">
+            <div><label>Full Name</label><input class="form-control" name="fullName" value="${escapeHtml(fullName)}" required></div>
+            <div><label>Surname</label><input class="form-control" name="surname" value="${escapeHtml(surname)}" required></div>
+            <div><label>Email Address</label><input class="form-control" type="email" name="emailAddress" value="${escapeHtml(emailAddress)}" required></div>
+            <div><label>Number</label><input class="form-control" name="phoneNumber" value="${escapeHtml(phoneNumber)}" required></div>
+            <div><label>Address</label><input class="form-control" name="address" value="${escapeHtml(address)}" required></div>
+            <div><label>Password</label><input class="form-control" type="password" name="password" required></div>
+          </div>
+          <p style="margin-top: 1rem;"><button class="btn" type="submit">Register</button></p>
+        </form>
+      </section>`;
+
+    sendPage(res, 'Resident Registration', body, 409, { authenticated: Boolean(req.session.user), user: req.session.user });
+    return;
+  }
+
+  users.push({
+    emailAddress,
+    password,
+    displayName: `${fullName} ${surname}`,
+    fullName,
+    surname,
+    phoneNumber,
+    address,
+    role: 'Resident'
+  });
+
+  const body = portalBody('Resident Registration', 'Your portal account has been created successfully.', '<section class="notice-success" style="margin-top: 1rem;">You can now sign in with your email address and password.</section>');
+  sendPage(res, 'Resident Registration', body, 200, { authenticated: Boolean(req.session.user), user: req.session.user });
 });
 
 app.get('/setup', requireRole(['Server Admin']), (req, res) => {
@@ -364,7 +446,95 @@ app.post('/setup', requireRole(['Server Admin']), (req, res) => {
   sendPage(res, 'Setup', body, 200, { authenticated: true, user: req.session.user });
 });
 
-app.get('/residents', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => sendPage(res, 'Residents Directory', portalBody('Residents Directory', 'This page is the Node.js placeholder for resident management and export features.', '<section class="panel" style="margin-top: 1rem;"><p>No resident data is loaded yet in this Node.js phase.</p></section>'), 200, { authenticated: true, user: req.session.user }));
+app.get('/residents', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => {
+  const residentRows = users
+    .filter((entry) => entry.role === 'Resident')
+    .map((entry) => `
+      <tr>
+        <td>${escapeHtml(entry.displayName || `${entry.fullName || ''} ${entry.surname || ''}`.trim())}</td>
+        <td>${escapeHtml(entry.emailAddress)}</td>
+        <td>${escapeHtml(entry.phoneNumber || '-')}</td>
+        <td>${escapeHtml(entry.address || '-')}</td>
+      </tr>`)
+    .join('') || '<tr><td colspan="4">No resident accounts have been created yet.</td></tr>';
+
+  const body = `
+    <section class="hero-block">
+      <h1>Residents & Roles</h1>
+      <p class="muted">View resident accounts and create PA Member, Admin, or Server Admin users.</p>
+    </section>
+    <section class="panel" style="margin-top: 1rem;">
+      <h2>Create Staff or Access Accounts</h2>
+      <form method="post" action="/residents">
+        <div class="grid">
+          <div><label>Full Name</label><input class="form-control" name="fullName" required></div>
+          <div><label>Surname</label><input class="form-control" name="surname" required></div>
+          <div><label>Email Address</label><input class="form-control" type="email" name="emailAddress" required></div>
+          <div><label>Number</label><input class="form-control" name="phoneNumber" required></div>
+          <div><label>Address</label><input class="form-control" name="address" required></div>
+          <div>
+            <label>Role</label>
+            <select class="form-control" name="role" required>
+              <option value="PA Member">PA Member</option>
+              <option value="Admin">Admin</option>
+              <option value="Server Admin">Server Admin</option>
+            </select>
+          </div>
+          <div><label>Password</label><input class="form-control" type="password" name="password" required></div>
+        </div>
+        <p style="margin-top: 1rem;"><button class="btn" type="submit">Add Account</button></p>
+      </form>
+    </section>
+    <section class="panel table-wrap" style="margin-top: 1rem;">
+      <h2>Resident Directory</h2>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Number</th>
+            <th>Address</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${residentRows}
+        </tbody>
+      </table>
+    </section>`;
+
+  sendPage(res, 'Residents Directory', body, 200, { authenticated: true, user: req.session.user });
+});
+
+app.post('/residents', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => {
+  const fullName = String(req.body.fullName || '').trim();
+  const surname = String(req.body.surname || '').trim();
+  const emailAddress = String(req.body.emailAddress || '').trim().toLowerCase();
+  const phoneNumber = String(req.body.phoneNumber || '').trim();
+  const address = String(req.body.address || '').trim();
+  const role = String(req.body.role || '').trim();
+  const password = String(req.body.password || '').trim();
+
+  if (!fullName || !surname || !emailAddress || !phoneNumber || !address || !role || !password || !['PA Member', 'Admin', 'Server Admin'].includes(role)) {
+    res.redirect('/residents');
+    return;
+  }
+
+  const existing = users.find((entry) => entry.emailAddress.toLowerCase() === emailAddress);
+  if (!existing) {
+    users.push({
+      emailAddress,
+      password,
+      displayName: `${fullName} ${surname}`,
+      fullName,
+      surname,
+      phoneNumber,
+      address,
+      role
+    });
+  }
+
+  res.redirect('/residents');
+});
 
 app.get('/command-view', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => sendPage(res, 'Councillor & MMC Oversight', portalBody('Councillor & MMC Oversight', 'Operational oversight content can be connected here in the next iteration.', '<section class="grid" style="margin-top: 1rem;"><div class="panel"><h2>Workflow</h2><p>Placeholder for dispatch and inspection actions.</p></div><div class="panel"><h2>Status</h2><p>Placeholder for complaint status updates.</p></div></section>'), 200, { authenticated: true, user: req.session.user }));
 
