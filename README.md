@@ -28,3 +28,4 @@ npm start
 - The legacy PHP site is kept in `php-site/` as a backup.
 - Static assets are served from `public/`.
 - The app renders pages directly from `server.js`, so no EJS views are required on the server.
+- Default portal logins are seeded in the Node app for now, including `jeanmari@thesolution.co.za` / `Foktogbokka`.
