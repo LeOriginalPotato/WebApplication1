@@ -70,6 +70,22 @@ a:hover {
   font-weight: 700;
   letter-spacing: 0.11em;
   text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.site-brand-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(15, 122, 63, 0.28);
+  background: #ffffff;
+}
+
+.site-brand-text {
+  display: inline-block;
 }
 
 .site-clock {
@@ -453,6 +469,10 @@ button {
   .site-footer-inner {
     flex-direction: column;
     text-align: center;
+  }
+
+  .site-brand {
+    justify-content: center;
   }
 
   .site-clock {
