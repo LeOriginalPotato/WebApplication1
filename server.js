@@ -4,6 +4,8 @@ const session = require('express-session');
 const app = express();
 const port = process.env.PORT || 3000;
 const loginPath = '/login';
+const whatsappImportWebhookPath = '/api/webhooks/whatsapp-import';
+const importWebhookToken = process.env.WHATSAPP_IMPORT_WEBHOOK_TOKEN || '';
 const publicPaths = new Set(['/styles/site.css']);
 const users = [
   {
@@ -41,6 +43,7 @@ const users = [
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(express.text({ type: ['text/plain', 'text/*'], limit: '5mb' }));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'pa-infrastructure-portal',
   resave: false,
@@ -63,6 +66,11 @@ app.use((req, res, next) => {
   }
 
   if (req.path === '/logout') {
+    next();
+    return;
+  }
+
+  if (req.path === whatsappImportWebhookPath) {
     next();
     return;
   }
@@ -109,6 +117,160 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function requireImportWebhook(req, res, next) {
+  if (!importWebhookToken) {
+    res.status(503).json({
+      message: 'Webhook token is not configured. Set WHATSAPP_IMPORT_WEBHOOK_TOKEN first.'
+    });
+    return;
+  }
+
+  const authHeader = String(req.headers.authorization || '').trim();
+  const tokenFromHeader = authHeader.startsWith('Bearer ')
+    ? authHeader.slice('Bearer '.length).trim()
+    : '';
+
+  if (!tokenFromHeader || tokenFromHeader !== importWebhookToken) {
+    res.status(401).json({ message: 'Unauthorized webhook request.' });
+    return;
+  }
+
+  next();
+}
+
+function scrubWhatsAppChatText(raw) {
+  const source = String(raw || '');
+  let scrubbed = source;
+
+  scrubbed = scrubbed.replace(/\+27\s?\d{2}\s?\d{3}\s?\d{4}/g, '[REDACTED_PHONE]');
+  scrubbed = scrubbed.replace(/\+27\d{9}/g, '[REDACTED_PHONE]');
+  scrubbed = scrubbed.replace(/\b0\d{2}\s?\d{3}\s?\d{4}\b/g, '[REDACTED_PHONE]');
+
+  scrubbed = scrubbed.replace(
+    /(\b(?:street|st\.?|road|rd\.?|avenue|ave\.?|lane|ln\.?|drive|dr\.?|court|ct\.?|close|crescent|erf|stand|plot|holding)\s+)(\d+[a-zA-Z0-9/-]*)/gi,
+    '$1[REDACTED_STREET_NUMBER]'
+  );
+
+  scrubbed = scrubbed.replace(
+    /(^|\n)(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4},?\s+\d{1,2}:\d{2}(?:\s?[ap]m)?\s+-\s+)([^:]{2,60})(:)/gi,
+    '$1$2[REDACTED_NAME]$4'
+  );
+
+  scrubbed = scrubbed.replace(/\b(?:Mr|Mrs|Ms|Miss|Dr|Prof)\.?\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b/g, '[REDACTED_NAME]');
+
+  return scrubbed;
+}
+
+function buildWhatsAppAnalyticsPrompt() {
+  return [
+    'You are a municipal service-delivery analytics engine for Randfontein.',
+    'Input is a scrubbed WhatsApp export text file where personal names, phone numbers, and street numbers must remain ignored.',
+    'Identify distinct service-delivery complaints and group them into localized categories.',
+    'Use only these categories: Electrical, Roads, Water, Environmental, TaxIncrease, Other.',
+    'Return only valid JSON with keys: TotalComplaints, CategoryCounts, LocalityCounts, SummaryNote.',
+    'CategoryCounts must be an object with category names as keys and numeric counts as values.',
+    'LocalityCounts must be an object keyed by locality/ward names when inferable from the text.',
+    'Do not include markdown, code fences, analysis text, or extra keys.'
+  ].join(' ');
+}
+
+function buildFallbackComplaintStats(scrubbedText) {
+  const categoryPatterns = {
+    Electrical: /\b(power|electricity|transformer|load\s?shedding|substation|blackout|cable)\b/gi,
+    Roads: /\b(pothole|road|tar|traffic\s?light|bridge|stormwater|drainage)\b/gi,
+    Water: /\b(water|pipe|leak|sewer|sanitation|burst|tap)\b/gi,
+    Environmental: /\b(refuse|waste|dump|landfill|pollution|smoke|air\s?quality)\b/gi,
+    TaxIncrease: /\b(rate\s?increase|tax\s?increase|valuation|billing|municipal\s?account)\b/gi,
+    Other: /\b(complaint|issue|problem|service)\b/gi
+  };
+
+  const localityPatterns = {
+    Randfontein: /\brandfontein\b/gi,
+    Mohlakeng: /\bmohlakeng\b/gi,
+    'Rural Holdings': /\brural\s+holdings\b/gi,
+    'CBD Core': /\bcbd\b|\bcbd\s+core\b/gi
+  };
+
+  const categoryCounts = Object.fromEntries(
+    Object.entries(categoryPatterns).map(([category, pattern]) => [category, (scrubbedText.match(pattern) || []).length])
+  );
+
+  const localityCounts = Object.fromEntries(
+    Object.entries(localityPatterns).map(([locality, pattern]) => [locality, (scrubbedText.match(pattern) || []).length])
+  );
+
+  const totalComplaints = Object.values(categoryCounts).reduce((sum, value) => sum + value, 0);
+
+  return {
+    TotalComplaints: totalComplaints,
+    CategoryCounts: categoryCounts,
+    LocalityCounts: localityCounts,
+    SummaryNote: 'Fallback parser stats were used. Configure OPENAI_API_KEY to enable GPT-4o analytics output.'
+  };
+}
+
+async function runWhatsAppAnalytics(scrubbedText) {
+  const apiKey = String(process.env.OPENAI_API_KEY || '').trim();
+  if (!apiKey) {
+    return {
+      model: 'fallback-parser',
+      prompt: buildWhatsAppAnalyticsPrompt(),
+      result: buildFallbackComplaintStats(scrubbedText)
+    };
+  }
+
+  const endpoint = String(process.env.OPENAI_ENDPOINT || 'https://api.openai.com/v1/chat/completions').trim();
+  const deployment = String(process.env.AZURE_OPENAI_DEPLOYMENT || '').trim();
+  const isAzure = endpoint.includes('.openai.azure.com');
+
+  const systemPrompt = buildWhatsAppAnalyticsPrompt();
+  const requestBody = {
+    model: process.env.OPENAI_MODEL || 'gpt-4o',
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: scrubbedText }
+    ],
+    temperature: 0.1,
+    response_format: { type: 'json_object' }
+  };
+
+  let requestUrl = endpoint;
+  const headers = { 'Content-Type': 'application/json' };
+
+  if (isAzure) {
+    const apiVersion = String(process.env.AZURE_OPENAI_API_VERSION || '2024-02-15-preview').trim();
+    const deploymentName = deployment || process.env.OPENAI_MODEL || 'gpt-4o';
+    requestUrl = `${endpoint.replace(/\/$/, '')}/openai/deployments/${deploymentName}/chat/completions?api-version=${encodeURIComponent(apiVersion)}`;
+    headers['api-key'] = apiKey;
+    delete requestBody.model;
+  } else {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
+
+  const response = await fetch(requestUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`LLM request failed (${response.status}): ${details}`);
+  }
+
+  const completion = await response.json();
+  const content = completion?.choices?.[0]?.message?.content;
+  if (!content) {
+    throw new Error('LLM returned an empty analytics payload.');
+  }
+
+  return {
+    model: isAzure ? `azure:${deployment || requestBody.model || 'gpt-4o'}` : requestBody.model,
+    prompt: systemPrompt,
+    result: JSON.parse(content)
+  };
 }
 
 function navMarkup(user) {
@@ -444,6 +606,49 @@ app.post('/setup', requireRole(['Server Admin']), (req, res) => {
     <section class="notice-success" style="margin-top: 1rem;">Configuration saved successfully.</section>`;
 
   sendPage(res, 'Setup', body, 200, { authenticated: true, user: req.session.user });
+});
+
+app.post(whatsappImportWebhookPath, requireImportWebhook, async (req, res) => {
+  try {
+    const contentType = String(req.headers['content-type'] || '').toLowerCase();
+    const payload = req.body;
+
+    let rawChatDump = '';
+    if (typeof payload === 'string') {
+      rawChatDump = payload;
+    } else if (payload && typeof payload === 'object') {
+      rawChatDump = String(payload.chatDump || payload.text || payload.content || payload.raw || '');
+    }
+
+    if (!rawChatDump.trim()) {
+      res.status(400).json({
+        message: 'Provide WhatsApp .txt content as text/plain body or JSON with chatDump/text/content/raw.'
+      });
+      return;
+    }
+
+    const scrubbedChatDump = scrubWhatsAppChatText(rawChatDump);
+    const analytics = await runWhatsAppAnalytics(scrubbedChatDump);
+
+    res.status(200).json({
+      ingestion: {
+        contentType,
+        inputLength: rawChatDump.length,
+        scrubbedLength: scrubbedChatDump.length,
+        popiaScrubApplied: true
+      },
+      llm: {
+        model: analytics.model,
+        prompt: analytics.prompt
+      },
+      statistics: analytics.result
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Unable to process WhatsApp import payload.',
+      details: error instanceof Error ? error.message : String(error)
+    });
+  }
 });
 
 app.get('/residents', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => {
