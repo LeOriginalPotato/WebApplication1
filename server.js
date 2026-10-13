@@ -10,10 +10,12 @@ const publicPaths = new Set(['/styles/site.css']);
 const systemConfiguration = {
   environmentName: 'production',
   siteName: 'PA Infrastructure Portal',
-  whatsAppChatLink: 'https://wa.me/0000000000'
+  whatsAppChatLink: 'https://wa.me/0000000000',
+  googleMapsApiKey: ''
 };
 const incidents = [];
 const section78Disputes = [];
+const notifications = [];
 const users = [
   {
     emailAddress: 'jeanmari@thesolution.co.za',
@@ -125,7 +127,9 @@ function buildMenuItems(user) {
     items.push(
       { href: '/create-admin-user', label: 'Create Admin/PA User' },
       { href: '/staff-management', label: 'Staff Management' },
-      { href: '/resident-management', label: 'Resident Management' }
+      { href: '/resident-management', label: 'Resident Management' },
+      { href: '/user-management', label: 'User Management' },
+      { href: '/incident-management', label: 'Incident Escalations' }
     );
   }
 
@@ -507,10 +511,27 @@ function buildIncidentRecord({ reporterEmail, reporterName, category, googlePinU
     longitude: coordinates.longitude,
     photoDataUrl,
     status: 'Logged',
+    escalationLevel: 'Ward Councillor',
     createdAt: new Date().toISOString()
   };
 
   incidents.push(incident);
+
+  const paRecipients = users
+    .filter((entry) => entry.role === 'PA Member' || entry.role === 'Admin' || entry.role === 'Server Admin')
+    .map((entry) => ({ emailAddress: entry.emailAddress, displayName: entry.displayName, role: entry.role }));
+
+  notifications.push({
+    id: `notif-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+    type: 'NewIncident',
+    ticketReference,
+    category,
+    locationLabel: googlePinUrl,
+    message: `New incident ${ticketReference} logged under ${category}.`,
+    recipients: paRecipients,
+    createdAt: new Date().toISOString()
+  });
+
   return { incident };
 }
 
@@ -535,6 +556,25 @@ function buildHeatmapSummary() {
   }
 
   return Array.from(buckets.values()).sort((a, b) => b.totalFaults - a.totalFaults);
+}
+
+function resolveCategoryCounts() {
+  const counts = {
+    electrical: 0,
+    smoke: 0,
+    roads: 0,
+    water: 0
+  };
+
+  for (const entry of incidents) {
+    const text = `${entry.category} ${entry.description}`.toLowerCase();
+    if (/electric|grid|power|outage/.test(text)) counts.electrical += 1;
+    if (/smoke|landfill|waste|burn/.test(text)) counts.smoke += 1;
+    if (/road|pothole|transport|tar/.test(text)) counts.roads += 1;
+    if (/water|sewage|sanitation|pipe|leak/.test(text)) counts.water += 1;
+  }
+
+  return counts;
 }
 
 function loginBody(notice = '', returnUrl = '/dashboard') {
@@ -778,7 +818,7 @@ app.get('/setup', requireRole(['Server Admin']), (req, res) => {
   const body = `
     <section class="hero-block">
       <h1>Setup</h1>
-      <p class="muted">Update portal configuration including the WhatsApp quick-chat button link.</p>
+      <p class="muted">Update portal configuration including WhatsApp and live Google Maps integration keys.</p>
     </section>
     <section class="auth-shell" style="margin-top: 1rem;">
       <form method="post" action="/setup">
@@ -786,6 +826,7 @@ app.get('/setup', requireRole(['Server Admin']), (req, res) => {
           <div><label>Environment Name</label><input class="form-control" name="environmentName" value="${escapeHtml(systemConfiguration.environmentName)}"></div>
           <div><label>Site Name</label><input class="form-control" name="siteName" value="${escapeHtml(systemConfiguration.siteName)}"></div>
           <div><label>WhatsApp Chat Link</label><input class="form-control" name="whatsAppChatLink" value="${escapeHtml(systemConfiguration.whatsAppChatLink)}" placeholder="https://wa.me/27123456789" required></div>
+          <div><label>Google Maps API Key</label><input class="form-control" name="googleMapsApiKey" value="${escapeHtml(systemConfiguration.googleMapsApiKey)}" placeholder="AIza..." autocomplete="off"></div>
         </div>
         <p style="margin-top: 1rem;"><button class="btn" type="submit">Save Setup</button></p>
       </form>
@@ -798,6 +839,7 @@ app.post('/setup', requireRole(['Server Admin']), (req, res) => {
   const environmentName = String(req.body.environmentName || '').trim() || 'production';
   const siteName = String(req.body.siteName || '').trim() || 'PA Infrastructure Portal';
   const whatsAppChatLinkInput = String(req.body.whatsAppChatLink || '').trim();
+  const googleMapsApiKey = String(req.body.googleMapsApiKey || '').trim();
   const whatsAppChatLink = /^https?:\/\//i.test(whatsAppChatLinkInput)
     ? whatsAppChatLinkInput
     : systemConfiguration.whatsAppChatLink;
@@ -805,6 +847,7 @@ app.post('/setup', requireRole(['Server Admin']), (req, res) => {
   systemConfiguration.environmentName = environmentName;
   systemConfiguration.siteName = siteName;
   systemConfiguration.whatsAppChatLink = whatsAppChatLink;
+  systemConfiguration.googleMapsApiKey = googleMapsApiKey;
 
   const body = `
     <section class="hero-block">
@@ -817,6 +860,7 @@ app.post('/setup', requireRole(['Server Admin']), (req, res) => {
       <p><strong>Environment:</strong> ${escapeHtml(systemConfiguration.environmentName)}</p>
       <p><strong>Site Name:</strong> ${escapeHtml(systemConfiguration.siteName)}</p>
       <p><strong>WhatsApp Link:</strong> <a href="${escapeHtml(systemConfiguration.whatsAppChatLink)}" target="_blank" rel="noopener noreferrer">${escapeHtml(systemConfiguration.whatsAppChatLink)}</a></p>
+      <p><strong>Google Maps Key:</strong> ${systemConfiguration.googleMapsApiKey ? 'Configured' : 'Not configured'}</p>
     </section>`;
 
   sendPage(res, 'Setup', body, 200, { authenticated: true, user: req.session.user });
@@ -1146,13 +1190,17 @@ app.post('/report-incident', requireRole(['Resident']), (req, res) => {
 app.get('/command-view', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => sendPage(res, 'Councillor & MMC Oversight', portalBody('Councillor & MMC Oversight', 'Operational oversight content can be connected here in the next iteration.', '<section class="grid" style="margin-top: 1rem;"><div class="panel"><h2>Workflow</h2><p>Placeholder for dispatch and inspection actions.</p></div><div class="panel"><h2>Status</h2><p>Placeholder for complaint status updates.</p></div></section>'), 200, { authenticated: true, user: req.session.user }));
 
 app.get('/stats-hub', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => {
+  const counts = resolveCategoryCounts();
+  const totalActive = incidents.filter((entry) => String(entry.status || '').toLowerCase() !== 'resolved').length;
+  const mapsReady = Boolean(systemConfiguration.googleMapsApiKey);
+
   const body = `
     <style>
-      :root { --pa-green: #006837; --pa-gold: #ffcc00; --dark-slate: #2b2b2b; }
+      :root { --pa-green: #006837; --dark-slate: #2b2b2b; }
       .stats-hub-wrap { color: var(--dark-slate); }
-      .stats-hub-header { background-color: var(--pa-green); color: white; padding: 20px; text-align: center; border-bottom: 5px solid var(--pa-gold); border-radius: 12px; }
+      .stats-hub-header { background-color: var(--pa-green); color: white; padding: 20px; text-align: center; border-bottom: 5px solid #0b5a31; border-radius: 12px; }
       .stats-hub-header h1 { margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
-      .stats-main-counter { background: white; max-width: 800px; margin: 25px auto; padding: 30px; border-radius: 12px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-left: 8px solid var(--pa-gold); }
+      .stats-main-counter { background: white; max-width: 800px; margin: 25px auto; padding: 30px; border-radius: 12px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-left: 8px solid var(--pa-green); }
       .stats-counter-number { font-size: 54px; font-weight: bold; color: var(--pa-green); margin: 10px 0; }
       .stats-grid-live { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; max-width: 860px; margin: 0 auto; padding: 0 20px; }
       .stats-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); text-align: center; border-top: 4px solid var(--pa-green); }
@@ -1160,7 +1208,7 @@ app.get('/stats-hub', requireRole(['Server Admin', 'Admin', 'PA Member']), (req,
       .stats-icon { font-size: 28px; margin-bottom: 10px; }
       .stats-count { font-size: 28px; font-weight: bold; margin: 5px 0; }
       .stats-label { font-size: 14px; color: #666; font-weight: 500; }
-      .stats-map-placeholder { max-width: 800px; height: 300px; margin: 30px auto; background-color: #e9ecef; border: 2px dashed #ccc; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #666; font-weight: bold; text-align: center; padding: 1rem; }
+      .stats-map-placeholder { max-width: 800px; height: 300px; margin: 30px auto; background-color: #e9ecef; border: 2px dashed #0f7a3f; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #355a45; font-weight: bold; text-align: center; padding: 1rem; }
       @media (max-width: 600px) { .stats-grid-live { grid-template-columns: 1fr; } }
     </style>
 
@@ -1172,35 +1220,37 @@ app.get('/stats-hub', requireRole(['Server Admin', 'Admin', 'PA Member']), (req,
 
       <div class="stats-main-counter">
         <h2>TOTAL ACTIVE INFRASTRUCTURE FAULTS REPORTED</h2>
-        <div class="stats-counter-number">427</div>
+        <div class="stats-counter-number">${escapeHtml(String(totalActive))}</div>
         <p>Verified service delivery failures currently monitored across Randfontein and rural areas.</p>
       </div>
 
       <div class="stats-grid-live">
         <div class="stats-card danger">
           <div class="stats-icon">⚡</div>
-          <div class="stats-count">241</div>
+          <div class="stats-count">${escapeHtml(String(counts.electrical))}</div>
           <div class="stats-label">Electrical & Grid Outages</div>
         </div>
         <div class="stats-card">
           <div class="stats-icon">💨</div>
-          <div class="stats-count">98</div>
+          <div class="stats-count">${escapeHtml(String(counts.smoke))}</div>
           <div class="stats-label">Landfill Smoke Hazards</div>
         </div>
         <div class="stats-card">
           <div class="stats-icon">🛣️</div>
-          <div class="stats-count">62</div>
+          <div class="stats-count">${escapeHtml(String(counts.roads))}</div>
           <div class="stats-label">Road & Pothole Faults</div>
         </div>
         <div class="stats-card">
           <div class="stats-icon">💧</div>
-          <div class="stats-count">26</div>
+          <div class="stats-count">${escapeHtml(String(counts.water))}</div>
           <div class="stats-label">Water & Sewage Leaks</div>
         </div>
       </div>
 
       <div class="stats-map-placeholder">
-        [Dynamic GPS Grid Heat Map View - Integrated via Mapbox / Google Maps API]
+        ${mapsReady
+          ? 'Google Maps API key configured. Live map integration endpoint is ready for activation.'
+          : 'Google Maps API key not configured. Add it in System Configuration to enable live map view.'}
       </div>
     </section>`;
 
@@ -1246,6 +1296,139 @@ app.get('/resident-management', requireRole(['Server Admin', 'Admin']), (req, re
     </section>`;
 
   sendPage(res, 'Resident Management', body, 200, { authenticated: true, user: req.session.user });
+});
+
+app.get('/user-management', requireRole(['Server Admin', 'Admin']), (req, res) => {
+  const userRows = users
+    .map((entry) => `
+      <tr>
+        <td>${escapeHtml(entry.displayName || '')}</td>
+        <td>${escapeHtml(entry.emailAddress || '')}</td>
+        <td>${escapeHtml(entry.role || '')}</td>
+        <td>
+          <form method="post" action="/user-management/update" style="display:grid; gap:0.45rem;">
+            <input type="hidden" name="emailAddress" value="${escapeHtml(entry.emailAddress || '')}">
+            <input class="form-control" name="displayName" value="${escapeHtml(entry.displayName || '')}" placeholder="Display name" required>
+            <input class="form-control" name="phoneNumber" value="${escapeHtml(entry.phoneNumber || '')}" placeholder="Phone number">
+            <input class="form-control" name="address" value="${escapeHtml(entry.address || '')}" placeholder="Address">
+            <select class="form-control" name="role">
+              ${['Resident', 'PA Member', 'Admin', 'Server Admin'].map((role) => `<option value="${role}" ${entry.role === role ? 'selected' : ''}>${role}</option>`).join('')}
+            </select>
+            <input class="form-control" type="password" name="password" placeholder="Set new password">
+            <button class="btn" type="submit">Save User</button>
+          </form>
+        </td>
+      </tr>`)
+    .join('') || '<tr><td colspan="4">No users found.</td></tr>';
+
+  const body = `
+    <section class="hero-block"><h1>User Management</h1><p class="muted">Admins and Server Admins can update user profiles, roles, and passwords.</p></section>
+    <section class="panel table-wrap" style="margin-top:1rem;">
+      <table class="table">
+        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Edit</th></tr></thead>
+        <tbody>${userRows}</tbody>
+      </table>
+    </section>`;
+
+  sendPage(res, 'User Management', body, 200, { authenticated: true, user: req.session.user });
+});
+
+app.post('/user-management/update', requireRole(['Server Admin', 'Admin']), (req, res) => {
+  const emailAddress = String(req.body.emailAddress || '').trim().toLowerCase();
+  const displayName = String(req.body.displayName || '').trim();
+  const phoneNumber = String(req.body.phoneNumber || '').trim();
+  const address = String(req.body.address || '').trim();
+  const role = String(req.body.role || '').trim();
+  const password = String(req.body.password || '').trim();
+
+  const editableRoles = ['Resident', 'PA Member', 'Admin', 'Server Admin'];
+  const target = users.find((entry) => entry.emailAddress.toLowerCase() === emailAddress);
+
+  if (!target || !displayName || !editableRoles.includes(role)) {
+    res.redirect('/user-management');
+    return;
+  }
+
+  target.displayName = displayName;
+  target.phoneNumber = phoneNumber;
+  target.address = address;
+  target.role = role;
+  if (password) {
+    target.password = password;
+  }
+
+  res.redirect('/user-management');
+});
+
+app.get('/incident-management', requireRole(['Server Admin', 'Admin']), (req, res) => {
+  const options = ['Ward Councillor', 'PA Member Liaison', 'Regional Coordinator', 'Provincial Desk'];
+
+  const rows = incidents
+    .slice()
+    .reverse()
+    .map((entry) => `
+      <tr>
+        <td>${escapeHtml(entry.ticketReference)}</td>
+        <td>${escapeHtml(entry.reporterName)}</td>
+        <td>${escapeHtml(entry.category)}</td>
+        <td>${escapeHtml(entry.status || 'Logged')}</td>
+        <td>${escapeHtml(entry.escalationLevel || 'Ward Councillor')}</td>
+        <td>
+          <form method="post" action="/incident-management/escalate" style="display:grid; gap:0.45rem;">
+            <input type="hidden" name="ticketReference" value="${escapeHtml(entry.ticketReference)}">
+            <select class="form-control" name="escalationLevel">
+              ${options.map((item) => `<option value="${item}" ${(entry.escalationLevel || 'Ward Councillor') === item ? 'selected' : ''}>${item}</option>`).join('')}
+            </select>
+            <select class="form-control" name="status">
+              ${['Logged', 'Pending', 'Resolved'].map((state) => `<option value="${state}" ${(entry.status || 'Logged') === state ? 'selected' : ''}>${state}</option>`).join('')}
+            </select>
+            <button class="btn" type="submit">Update Incident</button>
+          </form>
+        </td>
+      </tr>`)
+    .join('') || '<tr><td colspan="6">No incidents logged yet.</td></tr>';
+
+  const body = `
+    <section class="hero-block"><h1>Incident Escalations</h1><p class="muted">Escalate resident incidents to higher structures and update workflow status.</p></section>
+    <section class="panel table-wrap" style="margin-top:1rem;">
+      <table class="table">
+        <thead><tr><th>Ticket</th><th>Resident</th><th>Category</th><th>Status</th><th>Escalation</th><th>Actions</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </section>`;
+
+  sendPage(res, 'Incident Escalations', body, 200, { authenticated: true, user: req.session.user });
+});
+
+app.post('/incident-management/escalate', requireRole(['Server Admin', 'Admin']), (req, res) => {
+  const ticketReference = String(req.body.ticketReference || '').trim();
+  const escalationLevel = String(req.body.escalationLevel || '').trim();
+  const status = String(req.body.status || '').trim();
+
+  const allowedEscalations = ['Ward Councillor', 'PA Member Liaison', 'Regional Coordinator', 'Provincial Desk'];
+  const allowedStatuses = ['Logged', 'Pending', 'Resolved'];
+
+  const incident = incidents.find((entry) => entry.ticketReference === ticketReference);
+  if (!incident || !allowedEscalations.includes(escalationLevel) || !allowedStatuses.includes(status)) {
+    res.redirect('/incident-management');
+    return;
+  }
+
+  incident.escalationLevel = escalationLevel;
+  incident.status = status;
+
+  notifications.push({
+    id: `notif-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+    type: 'IncidentEscalation',
+    ticketReference,
+    message: `Incident ${ticketReference} escalated to ${escalationLevel} with status ${status}.`,
+    recipients: users
+      .filter((entry) => entry.role === 'PA Member' || entry.role === 'Admin' || entry.role === 'Server Admin')
+      .map((entry) => ({ emailAddress: entry.emailAddress, displayName: entry.displayName, role: entry.role })),
+    createdAt: new Date().toISOString()
+  });
+
+  res.redirect('/incident-management');
 });
 
 app.get('/residents-export', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => {
@@ -1354,7 +1537,22 @@ app.get('/api/heatmap', requireLogin, (req, res) => {
 
   res.status(200).json({
     totalFaults: incidents.length,
-    heatmap: buildHeatmapSummary()
+    heatmap: buildHeatmapSummary(),
+    mapsConfigured: Boolean(systemConfiguration.googleMapsApiKey)
+  });
+});
+
+app.get('/api/notifications', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => {
+  const email = String(req.session.user.emailAddress || '').toLowerCase();
+
+  const list = notifications
+    .filter((entry) => (entry.recipients || []).some((recipient) => String(recipient.emailAddress || '').toLowerCase() === email))
+    .slice()
+    .reverse();
+
+  res.status(200).json({
+    total: list.length,
+    notifications: list
   });
 });
 
