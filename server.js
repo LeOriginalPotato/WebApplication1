@@ -1145,7 +1145,67 @@ app.post('/report-incident', requireRole(['Resident']), (req, res) => {
 
 app.get('/command-view', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => sendPage(res, 'Councillor & MMC Oversight', portalBody('Councillor & MMC Oversight', 'Operational oversight content can be connected here in the next iteration.', '<section class="grid" style="margin-top: 1rem;"><div class="panel"><h2>Workflow</h2><p>Placeholder for dispatch and inspection actions.</p></div><div class="panel"><h2>Status</h2><p>Placeholder for complaint status updates.</p></div></section>'), 200, { authenticated: true, user: req.session.user }));
 
-app.get('/stats-hub', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => sendPage(res, 'Public Live Statistics Hub', portalBody('Public Live Statistics Hub', 'The live stats hub is available as a Node.js page.', '<section class="grid" style="margin-top: 1rem;"><div class="panel"><h2>Total Issues</h2><p>0</p></div><div class="panel"><h2>Electrical</h2><p>0</p></div><div class="panel"><h2>Roads</h2><p>0</p></div><div class="panel"><h2>Water</h2><p>0</p></div></section>'), 200, { authenticated: true, user: req.session.user }));
+app.get('/stats-hub', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => {
+  const body = `
+    <style>
+      :root { --pa-green: #006837; --pa-gold: #ffcc00; --dark-slate: #2b2b2b; }
+      .stats-hub-wrap { color: var(--dark-slate); }
+      .stats-hub-header { background-color: var(--pa-green); color: white; padding: 20px; text-align: center; border-bottom: 5px solid var(--pa-gold); border-radius: 12px; }
+      .stats-hub-header h1 { margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
+      .stats-main-counter { background: white; max-width: 800px; margin: 25px auto; padding: 30px; border-radius: 12px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-left: 8px solid var(--pa-gold); }
+      .stats-counter-number { font-size: 54px; font-weight: bold; color: var(--pa-green); margin: 10px 0; }
+      .stats-grid-live { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; max-width: 860px; margin: 0 auto; padding: 0 20px; }
+      .stats-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); text-align: center; border-top: 4px solid var(--pa-green); }
+      .stats-card.danger { border-top-color: #d9534f; }
+      .stats-icon { font-size: 28px; margin-bottom: 10px; }
+      .stats-count { font-size: 28px; font-weight: bold; margin: 5px 0; }
+      .stats-label { font-size: 14px; color: #666; font-weight: 500; }
+      .stats-map-placeholder { max-width: 800px; height: 300px; margin: 30px auto; background-color: #e9ecef; border: 2px dashed #ccc; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #666; font-weight: bold; text-align: center; padding: 1rem; }
+      @media (max-width: 600px) { .stats-grid-live { grid-template-columns: 1fr; } }
+    </style>
+
+    <section class="stats-hub-wrap">
+      <div class="stats-hub-header">
+        <h1>PA Infrastructure Tracking Command</h1>
+        <small>Rand West City Local Oversight System</small>
+      </div>
+
+      <div class="stats-main-counter">
+        <h2>TOTAL ACTIVE INFRASTRUCTURE FAULTS REPORTED</h2>
+        <div class="stats-counter-number">427</div>
+        <p>Verified service delivery failures currently monitored across Randfontein and rural areas.</p>
+      </div>
+
+      <div class="stats-grid-live">
+        <div class="stats-card danger">
+          <div class="stats-icon">⚡</div>
+          <div class="stats-count">241</div>
+          <div class="stats-label">Electrical & Grid Outages</div>
+        </div>
+        <div class="stats-card">
+          <div class="stats-icon">💨</div>
+          <div class="stats-count">98</div>
+          <div class="stats-label">Landfill Smoke Hazards</div>
+        </div>
+        <div class="stats-card">
+          <div class="stats-icon">🛣️</div>
+          <div class="stats-count">62</div>
+          <div class="stats-label">Road & Pothole Faults</div>
+        </div>
+        <div class="stats-card">
+          <div class="stats-icon">💧</div>
+          <div class="stats-count">26</div>
+          <div class="stats-label">Water & Sewage Leaks</div>
+        </div>
+      </div>
+
+      <div class="stats-map-placeholder">
+        [Dynamic GPS Grid Heat Map View - Integrated via Mapbox / Google Maps API]
+      </div>
+    </section>`;
+
+  sendPage(res, 'Public Live Statistics Hub', body, 200, { authenticated: true, user: req.session.user });
+});
 
 app.get('/create-admin-user', requireRole(['Server Admin', 'Admin']), (req, res) => {
   const body = portalBody('Create Admin/PA User', 'Create managed staff accounts from the Residents & Roles tab.', '<section class="panel" style="margin-top:1rem;"><p>Use <a href="/residents">Residents & Roles</a> to create Admin, PA Member, or Server Admin users.</p></section>');
