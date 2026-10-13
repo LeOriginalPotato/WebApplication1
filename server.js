@@ -136,10 +136,6 @@ function buildMenuItems(user) {
     items.push({ href: '/setup', label: 'System Configuration' });
   }
 
-  if (isStaff) {
-    items.push({ href: '/residents-export', label: 'Residents List Export' });
-  }
-
   items.push(
     { href: '/edit-my-user', label: 'Edit My User' },
     { href: '/privacy', label: 'Compliance' }
@@ -155,6 +151,16 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function extractTownFromAddress(address) {
+  const text = String(address || '').trim();
+  if (!text) return '';
+
+  const segments = text.split(',').map((part) => part.trim()).filter(Boolean);
+  if (!segments.length) return text;
+
+  return segments[segments.length - 1];
 }
 
 function requireImportWebhook(req, res, next) {
@@ -1275,25 +1281,172 @@ app.get('/staff-management', requireRole(['Server Admin', 'Admin']), (req, res) 
 });
 
 app.get('/resident-management', requireRole(['Server Admin', 'Admin']), (req, res) => {
-  const residentRows = users
+  const searchQuery = String(req.query.q || '').trim().toLowerCase();
+  const selectedTown = String(req.query.town || '').trim();
+  const sortByInput = String(req.query.sortBy || 'displayName').trim();
+  const sortDir = String(req.query.sortDir || 'asc').trim().toLowerCase() === 'desc' ? 'desc' : 'asc';
+  const exportStatus = String(req.query.exportStatus || '').trim();
+
+  const residents = users
     .filter((entry) => entry.role === 'Resident')
-    .map((entry) => `<tr><td>${escapeHtml(entry.displayName)}</td><td>${escapeHtml(entry.emailAddress)}</td><td>${escapeHtml(entry.phoneNumber || '-')}</td><td>${escapeHtml(entry.address || '-')}</td></tr>`)
-    .join('') || '<tr><td colspan="4">No residents found.</td></tr>';
+    .map((entry) => ({
+      ...entry,
+      town: extractTownFromAddress(entry.address || '')
+    }));
+
+  const towns = Array.from(new Set(residents.map((entry) => entry.town).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
+  const sortBy = ['displayName', 'emailAddress', 'phoneNumber', 'town', 'address'].includes(sortByInput)
+    ? sortByInput
+    : 'displayName';
+
+  let filteredResidents = residents.filter((entry) => {
+    const searchBlob = `${entry.displayName || ''} ${entry.emailAddress || ''} ${entry.phoneNumber || ''} ${entry.address || ''} ${entry.town || ''}`.toLowerCase();
+    const searchMatch = !searchQuery || searchBlob.includes(searchQuery);
+    const townMatch = !selectedTown || entry.town === selectedTown;
+    return searchMatch && townMatch;
+  });
+
+  const direction = sortDir === 'desc' ? -1 : 1;
+  filteredResidents = filteredResidents.sort((a, b) => {
+    const left = String(a[sortBy] || '').toLowerCase();
+    const right = String(b[sortBy] || '').toLowerCase();
+    return left.localeCompare(right) * direction;
+  });
+
+  const residentRows = filteredResidents
+    .map((entry) => `
+      <tr>
+        <td><input type="checkbox" class="resident-select" name="selectedResidents" value="${escapeHtml(entry.emailAddress)}"></td>
+        <td>${escapeHtml(entry.displayName || '-')}</td>
+        <td>${escapeHtml(entry.emailAddress || '-')}</td>
+        <td>${escapeHtml(entry.phoneNumber || '-')}</td>
+        <td>${escapeHtml(entry.town || '-')}</td>
+        <td>${escapeHtml(entry.address || '-')}</td>
+      </tr>`)
+    .join('') || '<tr><td colspan="6">No residents match the current search/filter.</td></tr>';
 
   const body = `
-    <section class="hero-block"><h1>Resident Management</h1><p class="muted">Review resident records.</p></section>
-    <section class="panel table-wrap" style="margin-top:1rem;">
-      <table class="table">
-        <thead><tr><th>Name</th><th>Email</th><th>Number</th><th>Address</th></tr></thead>
-        <tbody>${residentRows}</tbody>
-      </table>
-    </section>`;
+    <section class="hero-block"><h1>Resident Management</h1><p class="muted">Search, sort, and export selected residents from this page.</p></section>
+
+    ${exportStatus === 'none' ? '<section class="notice-error" style="margin-top:1rem;">Select at least one resident before exporting.</section>' : ''}
+
+    <section class="panel" style="margin-top:1rem;">
+      <h2>Search & Sort Residents</h2>
+      <form method="get" action="/resident-management" class="grid">
+        <div>
+          <label>Search</label>
+          <input class="form-control" name="q" value="${escapeHtml(searchQuery)}" placeholder="Name, email, phone, address, town">
+        </div>
+        <div>
+          <label>Town</label>
+          <select class="form-control" name="town">
+            <option value="">All Towns</option>
+            ${towns.map((town) => `<option value="${escapeHtml(town)}" ${selectedTown === town ? 'selected' : ''}>${escapeHtml(town)}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label>Sort By</label>
+          <select class="form-control" name="sortBy">
+            ${[
+              ['displayName', 'Name'],
+              ['emailAddress', 'Email'],
+              ['phoneNumber', 'Number'],
+              ['town', 'Town'],
+              ['address', 'Address']
+            ].map(([value, label]) => `<option value="${value}" ${sortBy === value ? 'selected' : ''}>${label}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label>Sort Direction</label>
+          <select class="form-control" name="sortDir">
+            <option value="asc" ${sortDir === 'asc' ? 'selected' : ''}>Ascending</option>
+            <option value="desc" ${sortDir === 'desc' ? 'selected' : ''}>Descending</option>
+          </select>
+        </div>
+        <div style="align-self:end;"><button class="btn" type="submit">Apply</button></div>
+      </form>
+    </section>
+
+    <form method="post" action="/resident-management/export">
+      <input type="hidden" name="q" value="${escapeHtml(searchQuery)}">
+      <input type="hidden" name="town" value="${escapeHtml(selectedTown)}">
+      <input type="hidden" name="sortBy" value="${escapeHtml(sortBy)}">
+      <input type="hidden" name="sortDir" value="${escapeHtml(sortDir)}">
+
+      <section class="panel table-wrap" style="margin-top:1rem;">
+        <h2>Resident Directory</h2>
+        <p class="muted">Tick residents you want to export, then click Export Selected.</p>
+        <p><label><input type="checkbox" id="selectAllResidents"> Select all visible residents</label></p>
+        <table class="table">
+          <thead><tr><th>Select</th><th>Name</th><th>Email</th><th>Number</th><th>Town</th><th>Address</th></tr></thead>
+          <tbody>${residentRows}</tbody>
+        </table>
+      </section>
+      <p style="margin-top:1rem;"><button class="btn" type="submit">Export Selected Residents (CSV)</button></p>
+    </form>
+
+    <script>
+      (function () {
+        const selectAll = document.getElementById('selectAllResidents');
+        if (!selectAll) return;
+        selectAll.addEventListener('change', function () {
+          document.querySelectorAll('.resident-select').forEach((checkbox) => {
+            checkbox.checked = selectAll.checked;
+          });
+        });
+      })();
+    </script>`;
 
   sendPage(res, 'Resident Management', body, 200, { authenticated: true, user: req.session.user });
 });
 
+app.post('/resident-management/export', requireRole(['Server Admin', 'Admin']), (req, res) => {
+  const selectedResidentsRaw = req.body.selectedResidents;
+  const selectedResidents = Array.isArray(selectedResidentsRaw)
+    ? selectedResidentsRaw
+    : selectedResidentsRaw ? [selectedResidentsRaw] : [];
+
+  const q = String(req.body.q || '').trim();
+  const town = String(req.body.town || '').trim();
+  const sortBy = String(req.body.sortBy || 'displayName').trim();
+  const sortDir = String(req.body.sortDir || 'asc').trim();
+
+  if (!selectedResidents.length) {
+    const params = new URLSearchParams({ q, town, sortBy, sortDir, exportStatus: 'none' });
+    res.redirect(`/resident-management?${params.toString()}`);
+    return;
+  }
+
+  const selectedSet = new Set(selectedResidents.map((item) => String(item || '').toLowerCase()));
+  const rows = users
+    .filter((entry) => entry.role === 'Resident' && selectedSet.has(String(entry.emailAddress || '').toLowerCase()))
+    .map((entry) => [
+      entry.displayName || '',
+      entry.emailAddress || '',
+      entry.phoneNumber || '',
+      extractTownFromAddress(entry.address || ''),
+      entry.address || ''
+    ].map((value) => `"${String(value).replace(/"/g, '""')}"`).join(','));
+
+  const csv = ['Name,Email,Number,Town,Address', ...rows].join('\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="residents_selected_${new Date().toISOString().slice(0, 10)}.csv"`);
+  res.send(csv);
+});
+
 app.get('/user-management', requireRole(['Server Admin', 'Admin']), (req, res) => {
-  const userRows = users
+  const searchQuery = String(req.query.q || '').trim().toLowerCase();
+
+  const managedUsers = users
+    .filter((entry) => entry.role !== 'Resident')
+    .filter((entry) => {
+      if (!searchQuery) return true;
+      const blob = `${entry.displayName || ''} ${entry.emailAddress || ''} ${entry.role || ''} ${entry.phoneNumber || ''}`.toLowerCase();
+      return blob.includes(searchQuery);
+    });
+
+  const userRows = managedUsers
     .map((entry) => `
       <tr>
         <td>${escapeHtml(entry.displayName || '')}</td>
@@ -1306,17 +1459,26 @@ app.get('/user-management', requireRole(['Server Admin', 'Admin']), (req, res) =
             <input class="form-control" name="phoneNumber" value="${escapeHtml(entry.phoneNumber || '')}" placeholder="Phone number">
             <input class="form-control" name="address" value="${escapeHtml(entry.address || '')}" placeholder="Address">
             <select class="form-control" name="role">
-              ${['Resident', 'PA Member', 'Admin', 'Server Admin'].map((role) => `<option value="${role}" ${entry.role === role ? 'selected' : ''}>${role}</option>`).join('')}
+              ${['PA Member', 'Admin', 'Server Admin'].map((role) => `<option value="${role}" ${entry.role === role ? 'selected' : ''}>${role}</option>`).join('')}
             </select>
             <input class="form-control" type="password" name="password" placeholder="Set new password">
             <button class="btn" type="submit">Save User</button>
           </form>
         </td>
       </tr>`)
-    .join('') || '<tr><td colspan="4">No users found.</td></tr>';
+    .join('') || '<tr><td colspan="4">No staff/admin users match the search.</td></tr>';
 
   const body = `
-    <section class="hero-block"><h1>User Management</h1><p class="muted">Admins and Server Admins can update user profiles, roles, and passwords.</p></section>
+    <section class="hero-block"><h1>User Management</h1><p class="muted">Search and manage Admin, PA Member, and Server Admin accounts only.</p></section>
+    <section class="panel" style="margin-top:1rem;">
+      <form method="get" action="/user-management" class="grid">
+        <div>
+          <label>Search Users</label>
+          <input class="form-control" name="q" value="${escapeHtml(searchQuery)}" placeholder="Name, email, role, phone">
+        </div>
+        <div style="align-self:end;"><button class="btn" type="submit">Search</button></div>
+      </form>
+    </section>
     <section class="panel table-wrap" style="margin-top:1rem;">
       <table class="table">
         <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Edit</th></tr></thead>
@@ -1335,10 +1497,10 @@ app.post('/user-management/update', requireRole(['Server Admin', 'Admin']), (req
   const role = String(req.body.role || '').trim();
   const password = String(req.body.password || '').trim();
 
-  const editableRoles = ['Resident', 'PA Member', 'Admin', 'Server Admin'];
+  const editableRoles = ['PA Member', 'Admin', 'Server Admin'];
   const target = users.find((entry) => entry.emailAddress.toLowerCase() === emailAddress);
 
-  if (!target || !displayName || !editableRoles.includes(role)) {
+  if (!target || !displayName || !editableRoles.includes(role) || target.role === 'Resident') {
     res.redirect('/user-management');
     return;
   }
@@ -1423,22 +1585,6 @@ app.post('/incident-management/escalate', requireRole(['Server Admin', 'Admin'])
   });
 
   res.redirect('/incident-management');
-});
-
-app.get('/residents-export', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => {
-  const rows = users
-    .filter((entry) => entry.role === 'Resident')
-    .map((entry) => [
-      entry.displayName || '',
-      entry.emailAddress || '',
-      entry.phoneNumber || '',
-      entry.address || ''
-    ].map((value) => `"${String(value).replace(/"/g, '""')}"`).join(','));
-
-  const csv = ['Name,Email,Number,Address', ...rows].join('\n');
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="residents_${new Date().toISOString().slice(0, 10)}.csv"`);
-  res.send(csv);
 });
 
 app.get('/edit-my-user', requireLogin, (req, res) => {
