@@ -5,7 +5,7 @@
 - User needs a top-level index file so the deployed website loads from a single entry point instead of exposing separate files.
 - User wants the site to publish from Visual Studio to cPanel and run without manual file edits after deployment.
 - User prefers the website visual theme to use light mode with green accents.
-- User wants the Patriotic Alliance logo displayed in the site header branding, with a larger header logo and 'PA' removed from the header title text.
+- User wants the Patriotic Alliance logo displayed in the site header branding, with a larger header logo that maintains original quality (higher resolution/vector quality) and 'PA' removed from the header title text.
 - When a requested implementation breaks the app, perform a full rollback of local and GitHub repositories to the prior known-good state.
 
 ## System Architecture
