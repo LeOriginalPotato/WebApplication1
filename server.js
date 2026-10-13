@@ -7,6 +7,12 @@ const loginPath = '/login';
 const whatsappImportWebhookPath = '/api/webhooks/whatsapp-import';
 const importWebhookToken = process.env.WHATSAPP_IMPORT_WEBHOOK_TOKEN || '';
 const publicPaths = new Set(['/styles/site.css']);
+const systemConfiguration = {
+  environmentName: 'production',
+  siteName: 'PA Infrastructure Portal',
+  whatsAppChatLink: 'https://wa.me/0000000000'
+};
+const incidents = [];
 const users = [
   {
     emailAddress: 'jeanmari@thesolution.co.za',
@@ -41,8 +47,8 @@ const users = [
 ];
 
 app.use(express.static('public'));
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use(express.text({ type: ['text/plain', 'text/*'], limit: '5mb' }));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'pa-infrastructure-portal',
@@ -95,6 +101,10 @@ function buildMenuItems(user) {
     { href: '/privacy', label: 'Compliance' }
   ];
 
+  if (role === 'Resident') {
+    items.splice(1, 0, { href: '/report-incident', label: 'Report Incident' });
+  }
+
   if (role === 'Server Admin' || role === 'Admin' || role === 'PA Member') {
     items.splice(1, 0,
       { href: '/command-view', label: 'PA Oversight Tab' },
@@ -104,7 +114,7 @@ function buildMenuItems(user) {
   }
 
   if (role === 'Server Admin') {
-    items.splice(4, 0, { href: '/setup', label: 'System Configuration' });
+    items.splice(items.length - 1, 0, { href: '/setup', label: 'System Configuration' });
   }
 
   return items;
@@ -280,6 +290,7 @@ function navMarkup(user) {
 
   return `
     <div class="site-nav-wrap">
+      <a class="site-whatsapp-button" href="${escapeHtml(systemConfiguration.whatsAppChatLink)}" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp chat link">WhatsApp</a>
       <div class="site-profile-badge">${user.displayName} (${user.role})</div>
       <div class="site-clock" id="siteClock"></div>
       <details class="site-menu">
@@ -344,6 +355,23 @@ function pageShell(title, body, options = {}) {
 
 function sendPage(res, title, body, status = 200, options = {}) {
   res.status(status).type('html').send(pageShell(title, body, options));
+}
+
+function renderIncidentRows() {
+  return incidents
+    .slice()
+    .reverse()
+    .slice(0, 20)
+    .map((incident) => `
+      <tr>
+        <td>${escapeHtml(incident.ticketReference)}</td>
+        <td>${escapeHtml(incident.reporterName)}</td>
+        <td>${escapeHtml(incident.category)}</td>
+        <td>${escapeHtml(incident.locationLabel)}</td>
+        <td>${escapeHtml(`${incident.latitude}, ${incident.longitude}`)}</td>
+        <td>${incident.photoDataUrl ? '<a href="' + escapeHtml(incident.photoDataUrl) + '" target="_blank" rel="noopener noreferrer">View Photo</a>' : '-'}</td>
+      </tr>`)
+    .join('') || '<tr><td colspan="6">No incidents logged yet.</td></tr>';
 }
 
 function portalBody(title, intro, cards = '', extra = '') {
@@ -582,13 +610,14 @@ app.get('/setup', requireRole(['Server Admin']), (req, res) => {
   const body = `
     <section class="hero-block">
       <h1>Setup</h1>
-      <p class="muted">This page is ready for future configuration work if you want to add persistence.</p>
+      <p class="muted">Update portal configuration including the WhatsApp quick-chat button link.</p>
     </section>
     <section class="auth-shell" style="margin-top: 1rem;">
       <form method="post" action="/setup">
         <div class="grid">
-          <div><label>Environment Name</label><input class="form-control" name="environmentName" value="production"></div>
-          <div><label>Site Name</label><input class="form-control" name="siteName" value="PA Infrastructure Portal"></div>
+          <div><label>Environment Name</label><input class="form-control" name="environmentName" value="${escapeHtml(systemConfiguration.environmentName)}"></div>
+          <div><label>Site Name</label><input class="form-control" name="siteName" value="${escapeHtml(systemConfiguration.siteName)}"></div>
+          <div><label>WhatsApp Chat Link</label><input class="form-control" name="whatsAppChatLink" value="${escapeHtml(systemConfiguration.whatsAppChatLink)}" placeholder="https://wa.me/27123456789" required></div>
         </div>
         <p style="margin-top: 1rem;"><button class="btn" type="submit">Save Setup</button></p>
       </form>
@@ -598,12 +627,29 @@ app.get('/setup', requireRole(['Server Admin']), (req, res) => {
 });
 
 app.post('/setup', requireRole(['Server Admin']), (req, res) => {
+  const environmentName = String(req.body.environmentName || '').trim() || 'production';
+  const siteName = String(req.body.siteName || '').trim() || 'PA Infrastructure Portal';
+  const whatsAppChatLinkInput = String(req.body.whatsAppChatLink || '').trim();
+  const whatsAppChatLink = /^https?:\/\//i.test(whatsAppChatLinkInput)
+    ? whatsAppChatLinkInput
+    : systemConfiguration.whatsAppChatLink;
+
+  systemConfiguration.environmentName = environmentName;
+  systemConfiguration.siteName = siteName;
+  systemConfiguration.whatsAppChatLink = whatsAppChatLink;
+
   const body = `
     <section class="hero-block">
       <h1>Setup</h1>
       <p class="muted">Setup completed in the current Node.js shell.</p>
     </section>
-    <section class="notice-success" style="margin-top: 1rem;">Configuration saved successfully.</section>`;
+    <section class="notice-success" style="margin-top: 1rem;">Configuration saved successfully.</section>
+    <section class="panel" style="margin-top: 1rem;">
+      <h2>Updated Settings</h2>
+      <p><strong>Environment:</strong> ${escapeHtml(systemConfiguration.environmentName)}</p>
+      <p><strong>Site Name:</strong> ${escapeHtml(systemConfiguration.siteName)}</p>
+      <p><strong>WhatsApp Link:</strong> <a href="${escapeHtml(systemConfiguration.whatsAppChatLink)}" target="_blank" rel="noopener noreferrer">${escapeHtml(systemConfiguration.whatsAppChatLink)}</a></p>
+    </section>`;
 
   sendPage(res, 'Setup', body, 200, { authenticated: true, user: req.session.user });
 });
@@ -663,6 +709,8 @@ app.get('/residents', requireRole(['Server Admin', 'Admin', 'PA Member']), (req,
       </tr>`)
     .join('') || '<tr><td colspan="4">No resident accounts have been created yet.</td></tr>';
 
+  const incidentRows = renderIncidentRows();
+
   const body = `
     <section class="hero-block">
       <h1>Residents & Roles</h1>
@@ -705,6 +753,24 @@ app.get('/residents', requireRole(['Server Admin', 'Admin', 'PA Member']), (req,
           ${residentRows}
         </tbody>
       </table>
+    </section>
+    <section class="panel table-wrap" style="margin-top: 1rem;">
+      <h2>Recent Resident Incident Reports</h2>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Ticket</th>
+            <th>Resident</th>
+            <th>Category</th>
+            <th>Pin Location</th>
+            <th>Coordinates</th>
+            <th>Photo</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${incidentRows}
+        </tbody>
+      </table>
     </section>`;
 
   sendPage(res, 'Residents Directory', body, 200, { authenticated: true, user: req.session.user });
@@ -739,6 +805,99 @@ app.post('/residents', requireRole(['Server Admin', 'Admin', 'PA Member']), (req
   }
 
   res.redirect('/residents');
+});
+
+app.get('/report-incident', requireRole(['Resident']), (req, res) => {
+  const body = `
+    <section class="hero-block">
+      <h1>Report Incident</h1>
+      <p class="muted">Log an incident with a photo and drop a Google Maps pin link. Coordinates are automatically extracted.</p>
+    </section>
+    <section class="auth-shell" style="margin-top: 1rem;">
+      <form method="post" action="/report-incident">
+        <div class="grid">
+          <div>
+            <label>Incident Category</label>
+            <select class="form-control" name="category" required>
+              <option value="Outage / Service Delivery">Outage / Service Delivery</option>
+              <option value="Road / Transport">Road / Transport</option>
+              <option value="Water / Sanitation">Water / Sanitation</option>
+              <option value="Environmental">Environmental</option>
+              <option value="Tax Increase">Tax Increase</option>
+            </select>
+          </div>
+          <div>
+            <label>Google Pin Link</label>
+            <input class="form-control" name="googlePinUrl" placeholder="https://maps.google.com/?q=-26.17,27.70" required>
+          </div>
+          <div>
+            <label>Photo Attachment (image URL or base64 data URL)</label>
+            <input class="form-control" name="photoDataUrl" placeholder="https://... or data:image/jpeg;base64,...">
+          </div>
+        </div>
+        <div style="margin-top: 1rem;">
+          <label>Incident Description</label>
+          <textarea class="form-control" name="description" rows="4" required></textarea>
+        </div>
+        <p style="margin-top: 1rem;"><button class="btn" type="submit">Submit Incident</button></p>
+      </form>
+    </section>`;
+
+  sendPage(res, 'Report Incident', body, 200, { authenticated: true, user: req.session.user });
+});
+
+app.post('/report-incident', requireRole(['Resident']), (req, res) => {
+  const category = String(req.body.category || '').trim();
+  const googlePinUrl = String(req.body.googlePinUrl || '').trim();
+  const description = String(req.body.description || '').trim();
+  const photoDataUrl = String(req.body.photoDataUrl || '').trim();
+
+  if (!category || !googlePinUrl || !description) {
+    sendPage(res, 'Report Incident', portalBody('Report Incident', 'Missing required fields. Please complete category, Google pin link, and description.', '<section class="notice-error" style="margin-top:1rem;">Please complete all required fields.</section>'), 400, { authenticated: true, user: req.session.user });
+    return;
+  }
+
+  const coordinateMatch = googlePinUrl.match(/(-?\d{1,2}\.\d{3,}),\s*(-?\d{1,3}\.\d{3,})/);
+  if (!coordinateMatch) {
+    sendPage(res, 'Report Incident', portalBody('Report Incident', 'Could not detect coordinates in the Google pin link.', '<section class="notice-error" style="margin-top:1rem;">Use a Google Maps link containing latitude and longitude.</section>'), 400, { authenticated: true, user: req.session.user });
+    return;
+  }
+
+  const latitude = Number(coordinateMatch[1]);
+  const longitude = Number(coordinateMatch[2]);
+
+  const randomDigits = Math.floor(Math.random() * 90000) + 10000;
+  const ticketReference = `PA-RF-${new Date().getFullYear()}-${randomDigits}`;
+
+  incidents.push({
+    ticketReference,
+    reporterEmail: req.session.user.emailAddress,
+    reporterName: req.session.user.displayName,
+    category,
+    description,
+    locationLabel: googlePinUrl,
+    latitude,
+    longitude,
+    photoDataUrl,
+    createdAt: new Date().toISOString()
+  });
+
+  const body = `
+    <section class="hero-block">
+      <h1>Incident Logged</h1>
+      <p class="muted">Your incident was submitted successfully.</p>
+    </section>
+    <section class="notice-success" style="margin-top: 1rem;">
+      Ticket <strong>${escapeHtml(ticketReference)}</strong> logged at coordinates <strong>${escapeHtml(String(latitude))}, ${escapeHtml(String(longitude))}</strong>.
+    </section>
+    <section class="panel" style="margin-top:1rem;">
+      <p><strong>Category:</strong> ${escapeHtml(category)}</p>
+      <p><strong>Description:</strong> ${escapeHtml(description)}</p>
+      <p><strong>Google Pin:</strong> <a href="${escapeHtml(googlePinUrl)}" target="_blank" rel="noopener noreferrer">Open Map</a></p>
+      ${photoDataUrl ? `<p><strong>Photo:</strong> <a href="${escapeHtml(photoDataUrl)}" target="_blank" rel="noopener noreferrer">View Attachment</a></p>` : '<p><strong>Photo:</strong> Not supplied</p>'}
+    </section>`;
+
+  sendPage(res, 'Incident Logged', body, 200, { authenticated: true, user: req.session.user });
 });
 
 app.get('/command-view', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => sendPage(res, 'Councillor & MMC Oversight', portalBody('Councillor & MMC Oversight', 'Operational oversight content can be connected here in the next iteration.', '<section class="grid" style="margin-top: 1rem;"><div class="panel"><h2>Workflow</h2><p>Placeholder for dispatch and inspection actions.</p></div><div class="panel"><h2>Status</h2><p>Placeholder for complaint status updates.</p></div></section>'), 200, { authenticated: true, user: req.session.user }));
