@@ -125,7 +125,6 @@ function buildMenuItems(user) {
 
   if (isAdmin) {
     items.push(
-      { href: '/create-admin-user', label: 'Create Admin/PA User' },
       { href: '/staff-management', label: 'Staff Management' },
       { href: '/resident-management', label: 'Resident Management' },
       { href: '/user-management', label: 'User Management' },
@@ -1255,11 +1254,6 @@ app.get('/stats-hub', requireRole(['Server Admin', 'Admin', 'PA Member']), (req,
     </section>`;
 
   sendPage(res, 'Public Live Statistics Hub', body, 200, { authenticated: true, user: req.session.user });
-});
-
-app.get('/create-admin-user', requireRole(['Server Admin', 'Admin']), (req, res) => {
-  const body = portalBody('Create Admin/PA User', 'Create managed staff accounts from the Residents & Roles tab.', '<section class="panel" style="margin-top:1rem;"><p>Use <a href="/residents">Residents & Roles</a> to create Admin, PA Member, or Server Admin users.</p></section>');
-  sendPage(res, 'Create Admin/PA User', body, 200, { authenticated: true, user: req.session.user });
 });
 
 app.get('/staff-management', requireRole(['Server Admin', 'Admin']), (req, res) => {

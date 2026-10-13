@@ -6,6 +6,7 @@
 - User wants the site to publish from Visual Studio to cPanel and run without manual file edits after deployment.
 - User prefers the website visual theme to use light mode with green accents, and the stats hub must use a green-only theme (no gold).
 - User wants the Patriotic Alliance logo displayed in the site header branding, with a larger header logo that maintains original quality (higher resolution/vector quality) and 'PA' removed from the header title text.
+- User wants the 'Create Admin/PA User' tab removed from the portal because it is not useful.
 - When a requested implementation breaks the app, perform a full rollback of local and GitHub repositories to the prior known-good state.
 
 ## System Architecture
