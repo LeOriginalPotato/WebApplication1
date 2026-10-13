@@ -616,32 +616,43 @@ function loginBody(notice = '', returnUrl = '/dashboard') {
       ${notice ? `<div class="notice-info">${notice}</div>` : ''}
       <form method="post" action="/login">
         <input type="hidden" name="returnUrl" value="${returnUrl}">
+        <input type="hidden" id="loginMethod" name="loginMethod" value="pin">
         <div style="display:grid; gap: 1rem;">
           <div>
             <label>Email Address</label>
             <input class="form-control" type="email" name="emailAddress" placeholder="jeanmari@thesolution.co.za" required>
           </div>
           <div>
-            <label>ID Number</label>
-            <input class="form-control" type="text" name="idNumber" placeholder="8001015009087" required>
+            <label id="credentialLabel">PIN</label>
+            <input class="form-control" id="credentialInput" type="password" name="credential" placeholder="Enter your PIN" required>
           </div>
           <div>
-            <label>Login Method</label>
-            <select class="form-control" name="loginMethod" required>
-              <option value="password">Password</option>
-              <option value="pin">PIN</option>
-            </select>
-          </div>
-          <div>
-            <label>Password / PIN</label>
-            <input class="form-control" type="password" name="credential" placeholder="Password or PIN" required>
+            <button class="btn" type="button" id="toggleLoginMethod">Use Password Instead</button>
           </div>
         </div>
         <p style="margin-top: 1rem;"><button class="btn" type="submit">Sign In</button></p>
       </form>
       <p class="muted" style="margin-top: 1rem;">No resident account yet?</p>
       <p><a class="btn" href="/register">Create Resident Account</a></p>
-    </section>`;
+    </section>
+    <script>
+      (function () {
+        const methodField = document.getElementById('loginMethod');
+        const toggleButton = document.getElementById('toggleLoginMethod');
+        const label = document.getElementById('credentialLabel');
+        const input = document.getElementById('credentialInput');
+        if (!methodField || !toggleButton || !label || !input) return;
+
+        toggleButton.addEventListener('click', function () {
+          const usePassword = methodField.value === 'pin';
+          methodField.value = usePassword ? 'password' : 'pin';
+          label.textContent = usePassword ? 'Password' : 'PIN';
+          input.placeholder = usePassword ? 'Enter your password' : 'Enter your PIN';
+          toggleButton.textContent = usePassword ? 'Use PIN Instead' : 'Use Password Instead';
+          input.focus();
+        });
+      })();
+    </script>`;
 }
 
 function requireLogin(req, res, next) {
@@ -733,15 +744,14 @@ app.get('/login', (req, res) => {
 
 app.post('/login', (req, res) => {
   const email = String(req.body.emailAddress || '').trim().toLowerCase();
-  const idNumber = String(req.body.idNumber || '').trim();
-  const loginMethod = String(req.body.loginMethod || 'password').trim().toLowerCase();
+  const loginMethod = String(req.body.loginMethod || 'pin').trim().toLowerCase();
   const credential = String(req.body.credential || '').trim();
   const returnUrl = String(req.body.returnUrl || '/dashboard');
 
-  const user = users.find((entry) => entry.emailAddress.toLowerCase() === email && String(entry.idNumber || '').trim() === idNumber);
+  const user = users.find((entry) => entry.emailAddress.toLowerCase() === email);
 
   if (!user) {
-    sendPage(res, 'Sign In', loginBody('Invalid login attempt. Email and ID number do not match.', returnUrl), 401, { authenticated: false });
+    sendPage(res, 'Sign In', loginBody('Invalid login attempt. Account not found.', returnUrl), 401, { authenticated: false });
     return;
   }
 
@@ -1665,13 +1675,15 @@ app.post('/incident-management/escalate', requireRole(['Server Admin', 'Admin'])
 app.get('/edit-my-user', requireLogin, (req, res) => {
   const account = users.find((entry) => entry.emailAddress.toLowerCase() === req.session.user.emailAddress.toLowerCase());
   const body = `
-    <section class="hero-block"><h1>Edit My User</h1><p class="muted">Update your phone number and physical address.</p></section>
+    <section class="hero-block"><h1>Edit My User</h1><p class="muted">Update your phone number, address, and login PIN whenever needed.</p></section>
     <section class="auth-shell" style="margin-top:1rem;">
       <form method="post" action="/edit-my-user">
         <div class="grid">
           <div><label>Email Address</label><input class="form-control" value="${escapeHtml(account?.emailAddress || req.session.user.emailAddress)}" disabled></div>
           <div><label>Phone Number</label><input class="form-control" name="phoneNumber" value="${escapeHtml(account?.phoneNumber || '')}"></div>
           <div><label>Address</label><input class="form-control" name="address" value="${escapeHtml(account?.address || '')}"></div>
+          <div><label>Current PIN</label><input class="form-control" type="password" name="currentPin" placeholder="Enter current PIN to change it"></div>
+          <div><label>New PIN (4-8 digits)</label><input class="form-control" name="newPin" pattern="\d{4,8}" placeholder="Leave blank to keep current PIN"></div>
         </div>
         <p style="margin-top:1rem;"><button class="btn" type="submit">Save My Profile</button></p>
       </form>
@@ -1685,6 +1697,12 @@ app.post('/edit-my-user', requireLogin, (req, res) => {
   if (account) {
     account.phoneNumber = String(req.body.phoneNumber || '').trim();
     account.address = String(req.body.address || '').trim();
+
+    const currentPin = String(req.body.currentPin || '').trim();
+    const newPin = String(req.body.newPin || '').trim();
+    if (newPin && /^\d{4,8}$/.test(newPin) && String(account.pin || '') === currentPin) {
+      account.pin = newPin;
+    }
   }
   res.redirect('/edit-my-user');
 });

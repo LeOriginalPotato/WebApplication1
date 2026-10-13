@@ -12,7 +12,7 @@
 ## User Management
 - Combine staff and user management into one tab/page.
 - Registration must require consent for collecting Name, Surname, ID Number, and Address.
-- Login must require ID Number and support PIN login; admins must be able to reset/change user PINs.
+- Login must support a toggle between PIN and password login; do not require ID Number at login. Admins must be able to reset/change user PINs, and users must be able to change their own PIN at any time.
 
 ## System Architecture
 - User wants the system architecture overview to be implemented as backend behavior instead of visible UI content. The architecture should be: Mobile/Web Front-End (paatwork.co.za) -> ASP.NET Core Web API -> Private SQL Database and Anonymized AI Parsing Engine for WhatsApp exports with PII stripping and fault categorization.
