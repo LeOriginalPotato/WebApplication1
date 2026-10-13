@@ -12,6 +12,25 @@ const systemConfiguration = {
   siteName: 'PA Infrastructure Portal',
   whatsAppChatLink: 'https://wa.me/0000000000'
 };
+const systemArchitecture = {
+  frontEnd: {
+    name: 'Mobile/Web Front-End',
+    host: 'paatwork.co.za',
+    transport: 'HTTPS JSON Payloads'
+  },
+  api: {
+    name: 'ASP.NET Core Web API',
+    hosting: 'Hosted via your secure cloud servers'
+  },
+  privateSqlDatabase: {
+    name: 'Private SQL Database',
+    stores: ['Users', 'Faults', 'GPS Heatmaps']
+  },
+  anonymizedAiParsingEngine: {
+    name: 'Anonymized AI Parsing Engine',
+    purpose: 'Ingests raw WhatsApp text exports, strips PII, counts and categories faults'
+  }
+};
 const incidents = [];
 const section78Disputes = [];
 const users = [
@@ -105,6 +124,7 @@ function buildMenuItems(user) {
       { href: '/dashboard', label: 'Dashboard' },
       { href: '/report-incident', label: 'Report Infrastructure Failure' },
       { href: '/section78-dispute', label: 'Section 78 Dispute' },
+      { href: '/system-architecture', label: 'System Architecture' },
       { href: '/edit-my-user', label: 'Edit My User' },
       { href: '/privacy', label: 'Compliance' }
     ];
@@ -138,6 +158,7 @@ function buildMenuItems(user) {
   }
 
   items.push(
+    { href: '/system-architecture', label: 'System Architecture' },
     { href: '/edit-my-user', label: 'Edit My User' },
     { href: '/privacy', label: 'Compliance' }
   );
@@ -572,6 +593,51 @@ app.get('/dashboard', requireLogin, (req, res) => {
 });
 
 app.get('/privacy', requireLogin, (req, res) => sendPage(res, 'Privacy Policy', portalBody('Privacy Policy', 'Use this page to detail your site\'s privacy policy.', '<section class="panel" style="margin-top: 1rem;"><p>This is the Node.js version of the privacy page.</p></section>'), 200, { authenticated: true, user: req.session.user }));
+
+app.get('/system-architecture', requireLogin, (req, res) => {
+  const body = `
+    <section class="hero-block">
+      <h1>System Architecture Overview</h1>
+      <p class="muted">Current target architecture for paatwork.co.za, ingestion, analytics, and secure municipal operations.</p>
+    </section>
+    <section class="panel" style="margin-top: 1rem;">
+      <pre style="white-space: pre-wrap; margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;">[Mobile/Web Front-End] (paatwork.co.za)
+         │
+         ▼ (HTTPS JSON Payloads)
+[ASP.NET Core Web API] (Hosted via your secure cloud servers)
+         │
+         ├──► [Private SQL Database] (Stores Users, Faults, GPS Heatmaps)
+         │
+         └──► [Anonymized AI Parsing Engine] (Ingests raw WhatsApp text exports,
+                                              strips PII, counts & categories faults)</pre>
+    </section>
+    <section class="grid" style="margin-top: 1rem;">
+      <section class="panel">
+        <h2>${escapeHtml(systemArchitecture.frontEnd.name)}</h2>
+        <p><strong>Host:</strong> ${escapeHtml(systemArchitecture.frontEnd.host)}</p>
+        <p><strong>Payload Transport:</strong> ${escapeHtml(systemArchitecture.frontEnd.transport)}</p>
+      </section>
+      <section class="panel">
+        <h2>${escapeHtml(systemArchitecture.api.name)}</h2>
+        <p><strong>Hosting:</strong> ${escapeHtml(systemArchitecture.api.hosting)}</p>
+        <p><strong>Purpose:</strong> Secure orchestration layer for portal requests and backend workflows.</p>
+      </section>
+      <section class="panel">
+        <h2>${escapeHtml(systemArchitecture.privateSqlDatabase.name)}</h2>
+        <p><strong>Stores:</strong> ${escapeHtml(systemArchitecture.privateSqlDatabase.stores.join(', '))}</p>
+      </section>
+      <section class="panel">
+        <h2>${escapeHtml(systemArchitecture.anonymizedAiParsingEngine.name)}</h2>
+        <p>${escapeHtml(systemArchitecture.anonymizedAiParsingEngine.purpose)}</p>
+      </section>
+    </section>`;
+
+  sendPage(res, 'System Architecture', body, 200, { authenticated: true, user: req.session.user });
+});
+
+app.get('/api/system-architecture', requireLogin, (req, res) => {
+  res.status(200).json(systemArchitecture);
+});
 
 app.get('/login', (req, res) => {
   if (req.session.user) {
