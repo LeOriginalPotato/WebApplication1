@@ -9,6 +9,11 @@
 - User wants the 'Create Admin/PA User' tab removed from the portal because it is not useful.
 - When a requested implementation breaks the app, perform a full rollback of local and GitHub repositories to the prior known-good state.
 
+## User Management
+- Combine staff and user management into one tab/page.
+- Registration must require consent for collecting Name, Surname, ID Number, and Address.
+- Login must require ID Number and support PIN login; admins must be able to reset/change user PINs.
+
 ## System Architecture
 - User wants the system architecture overview to be implemented as backend behavior instead of visible UI content. The architecture should be: Mobile/Web Front-End (paatwork.co.za) -> ASP.NET Core Web API -> Private SQL Database and Anonymized AI Parsing Engine for WhatsApp exports with PII stripping and fault categorization.
 - System configuration must allow setting the Google Maps API key for live maps.

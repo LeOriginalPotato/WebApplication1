@@ -20,32 +20,43 @@ const users = [
   {
     emailAddress: 'jeanmari@thesolution.co.za',
     password: 'Foktogbokka',
+    pin: '1101',
+    idNumber: '8001015009087',
     displayName: 'Jeanmari Administrator',
     role: 'Server Admin'
   },
   {
     emailAddress: 'jean@thesolution.co.za',
     password: '888@JP',
+    pin: '2202',
+    idNumber: '8202025009088',
     displayName: 'Jean Administrator',
     role: 'Server Admin'
   },
   {
     emailAddress: 'admin@pa.local',
     password: 'Password123!',
+    pin: '3303',
+    idNumber: '8303035009089',
     displayName: 'Admin Example',
     role: 'Admin'
   },
   {
     emailAddress: 'pamember@pa.local',
     password: 'Password123!',
+    pin: '4404',
+    idNumber: '8404045009090',
     displayName: 'PA Member Example',
     role: 'PA Member'
   },
   {
     emailAddress: 'resident@pa.local',
     password: 'Password123!',
+    pin: '5505',
+    idNumber: '8505055009091',
     displayName: 'Resident Example',
-    role: 'Resident'
+    role: 'Resident',
+    consentGiven: true
   }
 ];
 
@@ -125,7 +136,6 @@ function buildMenuItems(user) {
 
   if (isAdmin) {
     items.push(
-      { href: '/staff-management', label: 'Staff Management' },
       { href: '/resident-management', label: 'Resident Management' },
       { href: '/user-management', label: 'User Management' },
       { href: '/incident-management', label: 'Incident Escalations' }
@@ -600,7 +610,7 @@ function resolveCategoryCounts() {
 
 function loginBody(notice = '', returnUrl = '/dashboard') {
   return `
-    <section class="auth-shell" style="max-width: 460px; margin: 0 auto;">
+    <section class="auth-shell" style="max-width: 520px; margin: 0 auto;">
       <h1 style="margin-top: 0;">Portal Sign In</h1>
       <p class="muted">Use your assigned portal account to continue.</p>
       ${notice ? `<div class="notice-info">${notice}</div>` : ''}
@@ -612,8 +622,19 @@ function loginBody(notice = '', returnUrl = '/dashboard') {
             <input class="form-control" type="email" name="emailAddress" placeholder="jeanmari@thesolution.co.za" required>
           </div>
           <div>
-            <label>Password</label>
-            <input class="form-control" type="password" name="password" placeholder="Your password" required>
+            <label>ID Number</label>
+            <input class="form-control" type="text" name="idNumber" placeholder="8001015009087" required>
+          </div>
+          <div>
+            <label>Login Method</label>
+            <select class="form-control" name="loginMethod" required>
+              <option value="password">Password</option>
+              <option value="pin">PIN</option>
+            </select>
+          </div>
+          <div>
+            <label>Password / PIN</label>
+            <input class="form-control" type="password" name="credential" placeholder="Password or PIN" required>
           </div>
         </div>
         <p style="margin-top: 1rem;"><button class="btn" type="submit">Sign In</button></p>
@@ -712,12 +733,23 @@ app.get('/login', (req, res) => {
 
 app.post('/login', (req, res) => {
   const email = String(req.body.emailAddress || '').trim().toLowerCase();
-  const password = String(req.body.password || '');
+  const idNumber = String(req.body.idNumber || '').trim();
+  const loginMethod = String(req.body.loginMethod || 'password').trim().toLowerCase();
+  const credential = String(req.body.credential || '').trim();
   const returnUrl = String(req.body.returnUrl || '/dashboard');
-  const user = users.find((entry) => entry.emailAddress.toLowerCase() === email && entry.password === password);
+
+  const user = users.find((entry) => entry.emailAddress.toLowerCase() === email && String(entry.idNumber || '').trim() === idNumber);
 
   if (!user) {
-    sendPage(res, 'Sign In', loginBody('Invalid login attempt.', returnUrl), 401, { authenticated: false });
+    sendPage(res, 'Sign In', loginBody('Invalid login attempt. Email and ID number do not match.', returnUrl), 401, { authenticated: false });
+    return;
+  }
+
+  const validByPassword = loginMethod === 'password' && user.password === credential;
+  const validByPin = loginMethod === 'pin' && String(user.pin || '') === credential;
+
+  if (!validByPassword && !validByPin) {
+    sendPage(res, 'Sign In', loginBody('Invalid password or PIN.', returnUrl), 401, { authenticated: false });
     return;
   }
 
@@ -748,10 +780,15 @@ app.get('/register', (req, res) => {
         <div class="grid">
           <div><label>Full Name</label><input class="form-control" name="fullName" required></div>
           <div><label>Surname</label><input class="form-control" name="surname" required></div>
+          <div><label>ID Number</label><input class="form-control" name="idNumber" required></div>
           <div><label>Email Address</label><input class="form-control" type="email" name="emailAddress" required></div>
           <div><label>Number</label><input class="form-control" name="phoneNumber" required></div>
           <div><label>Address</label><input class="form-control" name="address" required></div>
           <div><label>Password</label><input class="form-control" type="password" name="password" required></div>
+          <div><label>Create Login PIN (4-8 digits)</label><input class="form-control" type="password" name="pin" pattern="\d{4,8}" required></div>
+        </div>
+        <div class="check-wrap" style="margin-top:1rem;">
+          <label class="form-check-row"><input type="checkbox" name="consentDataCollection" value="yes" required> I consent to the collection and processing of my Name, Surname, ID Number, and Address for municipal service-delivery operations.</label>
         </div>
         <p style="margin-top: 1rem;"><button class="btn" type="submit">Register</button></p>
       </form>
@@ -763,13 +800,16 @@ app.get('/register', (req, res) => {
 app.post('/register', (req, res) => {
   const fullName = String(req.body.fullName || '').trim();
   const surname = String(req.body.surname || '').trim();
+  const idNumber = String(req.body.idNumber || '').trim();
   const emailAddress = String(req.body.emailAddress || '').trim().toLowerCase();
   const phoneNumber = String(req.body.phoneNumber || '').trim();
   const address = String(req.body.address || '').trim();
   const password = String(req.body.password || '').trim();
+  const pin = String(req.body.pin || '').trim();
+  const consentDataCollection = String(req.body.consentDataCollection || '').trim().toLowerCase() === 'yes';
 
-  if (!fullName || !surname || !emailAddress || !phoneNumber || !address || !password) {
-    const notice = 'Please complete full name, surname, email, number, address, and password.';
+  if (!fullName || !surname || !idNumber || !emailAddress || !phoneNumber || !address || !password || !pin || !consentDataCollection || !/^\d{4,8}$/.test(pin)) {
+    const notice = 'Complete all fields, provide a numeric 4-8 digit PIN, and accept data-collection consent.';
     const body = `
       <section class="hero-block">
         <h1>Resident Registration</h1>
@@ -781,10 +821,15 @@ app.post('/register', (req, res) => {
           <div class="grid">
             <div><label>Full Name</label><input class="form-control" name="fullName" value="${escapeHtml(fullName)}" required></div>
             <div><label>Surname</label><input class="form-control" name="surname" value="${escapeHtml(surname)}" required></div>
+            <div><label>ID Number</label><input class="form-control" name="idNumber" value="${escapeHtml(idNumber)}" required></div>
             <div><label>Email Address</label><input class="form-control" type="email" name="emailAddress" value="${escapeHtml(emailAddress)}" required></div>
             <div><label>Number</label><input class="form-control" name="phoneNumber" value="${escapeHtml(phoneNumber)}" required></div>
             <div><label>Address</label><input class="form-control" name="address" value="${escapeHtml(address)}" required></div>
             <div><label>Password</label><input class="form-control" type="password" name="password" required></div>
+            <div><label>Create Login PIN (4-8 digits)</label><input class="form-control" type="password" name="pin" pattern="\d{4,8}" required></div>
+          </div>
+          <div class="check-wrap" style="margin-top:1rem;">
+            <label class="form-check-row"><input type="checkbox" name="consentDataCollection" value="yes" ${consentDataCollection ? 'checked' : ''} required> I consent to the collection and processing of my Name, Surname, ID Number, and Address for municipal service-delivery operations.</label>
           </div>
           <p style="margin-top: 1rem;"><button class="btn" type="submit">Register</button></p>
         </form>
@@ -794,7 +839,7 @@ app.post('/register', (req, res) => {
     return;
   }
 
-  const existing = users.find((entry) => entry.emailAddress.toLowerCase() === emailAddress);
+  const existing = users.find((entry) => entry.emailAddress.toLowerCase() === emailAddress || String(entry.idNumber || '') === idNumber);
   if (existing) {
     const body = `
       <section class="hero-block">
@@ -802,15 +847,20 @@ app.post('/register', (req, res) => {
         <p class="muted">Create a portal account with the details your municipality needs.</p>
       </section>
       <section class="auth-shell" style="margin-top: 1rem;">
-        <div class="notice-error">An account already exists for that email address.</div>
+        <div class="notice-error">An account already exists for that email address or ID number.</div>
         <form method="post" action="/register">
           <div class="grid">
             <div><label>Full Name</label><input class="form-control" name="fullName" value="${escapeHtml(fullName)}" required></div>
             <div><label>Surname</label><input class="form-control" name="surname" value="${escapeHtml(surname)}" required></div>
+            <div><label>ID Number</label><input class="form-control" name="idNumber" value="${escapeHtml(idNumber)}" required></div>
             <div><label>Email Address</label><input class="form-control" type="email" name="emailAddress" value="${escapeHtml(emailAddress)}" required></div>
             <div><label>Number</label><input class="form-control" name="phoneNumber" value="${escapeHtml(phoneNumber)}" required></div>
             <div><label>Address</label><input class="form-control" name="address" value="${escapeHtml(address)}" required></div>
             <div><label>Password</label><input class="form-control" type="password" name="password" required></div>
+            <div><label>Create Login PIN (4-8 digits)</label><input class="form-control" type="password" name="pin" pattern="\d{4,8}" required></div>
+          </div>
+          <div class="check-wrap" style="margin-top:1rem;">
+            <label class="form-check-row"><input type="checkbox" name="consentDataCollection" value="yes" checked required> I consent to the collection and processing of my Name, Surname, ID Number, and Address for municipal service-delivery operations.</label>
           </div>
           <p style="margin-top: 1rem;"><button class="btn" type="submit">Register</button></p>
         </form>
@@ -823,6 +873,9 @@ app.post('/register', (req, res) => {
   users.push({
     emailAddress,
     password,
+    pin,
+    idNumber,
+    consentGiven: true,
     displayName: `${fullName} ${surname}`,
     fullName,
     surname,
@@ -831,7 +884,7 @@ app.post('/register', (req, res) => {
     role: 'Resident'
   });
 
-  const body = portalBody('Resident Registration', 'Your portal account has been created successfully.', '<section class="notice-success" style="margin-top: 1rem;">You can now sign in with your email address and password.</section>');
+  const body = portalBody('Resident Registration', 'Your portal account has been created successfully.', '<section class="notice-success" style="margin-top: 1rem;">You can now sign in with your email address + ID number, using password or PIN.</section>');
   sendPage(res, 'Resident Registration', body, 200, { authenticated: Boolean(req.session.user), user: req.session.user });
 });
 
@@ -957,6 +1010,7 @@ app.get('/residents', requireRole(['Server Admin', 'Admin', 'PA Member']), (req,
         <div class="grid">
           <div><label>Full Name</label><input class="form-control" name="fullName" required></div>
           <div><label>Surname</label><input class="form-control" name="surname" required></div>
+          <div><label>ID Number</label><input class="form-control" name="idNumber" required></div>
           <div><label>Email Address</label><input class="form-control" type="email" name="emailAddress" required></div>
           <div><label>Number</label><input class="form-control" name="phoneNumber" required></div>
           <div><label>Address</label><input class="form-control" name="address" required></div>
@@ -969,6 +1023,7 @@ app.get('/residents', requireRole(['Server Admin', 'Admin', 'PA Member']), (req,
             </select>
           </div>
           <div><label>Password</label><input class="form-control" type="password" name="password" required></div>
+          <div><label>PIN (4-8 digits)</label><input class="form-control" name="pin" pattern="\d{4,8}" required></div>
         </div>
         <p style="margin-top: 1rem;"><button class="btn" type="submit">Add Account</button></p>
       </form>
@@ -1014,22 +1069,26 @@ app.get('/residents', requireRole(['Server Admin', 'Admin', 'PA Member']), (req,
 app.post('/residents', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => {
   const fullName = String(req.body.fullName || '').trim();
   const surname = String(req.body.surname || '').trim();
+  const idNumber = String(req.body.idNumber || '').trim();
   const emailAddress = String(req.body.emailAddress || '').trim().toLowerCase();
   const phoneNumber = String(req.body.phoneNumber || '').trim();
   const address = String(req.body.address || '').trim();
   const role = String(req.body.role || '').trim();
   const password = String(req.body.password || '').trim();
+  const pin = String(req.body.pin || '').trim();
 
-  if (!fullName || !surname || !emailAddress || !phoneNumber || !address || !role || !password || !['PA Member', 'Admin', 'Server Admin'].includes(role)) {
+  if (!fullName || !surname || !idNumber || !emailAddress || !phoneNumber || !address || !role || !password || !/^\d{4,8}$/.test(pin) || !['PA Member', 'Admin', 'Server Admin'].includes(role)) {
     res.redirect('/residents');
     return;
   }
 
-  const existing = users.find((entry) => entry.emailAddress.toLowerCase() === emailAddress);
+  const existing = users.find((entry) => entry.emailAddress.toLowerCase() === emailAddress || String(entry.idNumber || '') === idNumber);
   if (!existing) {
     users.push({
       emailAddress,
       password,
+      pin,
+      idNumber,
       displayName: `${fullName} ${surname}`,
       fullName,
       surname,
@@ -1279,21 +1338,7 @@ app.get('/stats-hub', requireRole(['Server Admin', 'Admin', 'PA Member']), (req,
 });
 
 app.get('/staff-management', requireRole(['Server Admin', 'Admin']), (req, res) => {
-  const staffRows = users
-    .filter((entry) => entry.role === 'Server Admin' || entry.role === 'Admin' || entry.role === 'PA Member')
-    .map((entry) => `<tr><td>${escapeHtml(entry.displayName)}</td><td>${escapeHtml(entry.role)}</td><td>${escapeHtml(entry.emailAddress)}</td><td>${escapeHtml(entry.phoneNumber || '-')}</td></tr>`)
-    .join('') || '<tr><td colspan="4">No staff accounts found.</td></tr>';
-
-  const body = `
-    <section class="hero-block"><h1>Staff Management</h1><p class="muted">View all PA Member, Admin, and Server Admin accounts.</p></section>
-    <section class="panel table-wrap" style="margin-top:1rem;">
-      <table class="table">
-        <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Number</th></tr></thead>
-        <tbody>${staffRows}</tbody>
-      </table>
-    </section>`;
-
-  sendPage(res, 'Staff Management', body, 200, { authenticated: true, user: req.session.user });
+  res.redirect('/user-management');
 });
 
 app.get('/resident-management', requireRole(['Server Admin', 'Admin']), (req, res) => {
@@ -1458,7 +1503,7 @@ app.get('/user-management', requireRole(['Server Admin', 'Admin']), (req, res) =
     .filter((entry) => entry.role !== 'Resident')
     .filter((entry) => {
       if (!searchQuery) return true;
-      const blob = `${entry.displayName || ''} ${entry.emailAddress || ''} ${entry.role || ''} ${entry.phoneNumber || ''}`.toLowerCase();
+      const blob = `${entry.displayName || ''} ${entry.emailAddress || ''} ${entry.role || ''} ${entry.phoneNumber || ''} ${entry.idNumber || ''}`.toLowerCase();
       return blob.includes(searchQuery);
     });
 
@@ -1472,12 +1517,14 @@ app.get('/user-management', requireRole(['Server Admin', 'Admin']), (req, res) =
           <form method="post" action="/user-management/update" style="display:grid; gap:0.45rem;">
             <input type="hidden" name="emailAddress" value="${escapeHtml(entry.emailAddress || '')}">
             <input class="form-control" name="displayName" value="${escapeHtml(entry.displayName || '')}" placeholder="Display name" required>
+            <input class="form-control" name="idNumber" value="${escapeHtml(entry.idNumber || '')}" placeholder="ID number" required>
             <input class="form-control" name="phoneNumber" value="${escapeHtml(entry.phoneNumber || '')}" placeholder="Phone number">
             <input class="form-control" name="address" value="${escapeHtml(entry.address || '')}" placeholder="Address">
             <select class="form-control" name="role">
               ${['PA Member', 'Admin', 'Server Admin'].map((role) => `<option value="${role}" ${entry.role === role ? 'selected' : ''}>${role}</option>`).join('')}
             </select>
-            <input class="form-control" type="password" name="password" placeholder="Set new password">
+            <input class="form-control" type="password" name="password" placeholder="Set new password (optional)">
+            <input class="form-control" name="pin" pattern="\d{4,8}" placeholder="Set new PIN (4-8 digits, optional)">
             <button class="btn" type="submit">Save User</button>
           </form>
         </td>
@@ -1485,12 +1532,12 @@ app.get('/user-management', requireRole(['Server Admin', 'Admin']), (req, res) =
     .join('') || '<tr><td colspan="4">No staff/admin users match the search.</td></tr>';
 
   const body = `
-    <section class="hero-block"><h1>User Management</h1><p class="muted">Search and manage Admin, PA Member, and Server Admin accounts only.</p></section>
+    <section class="hero-block"><h1>Staff & User Management</h1><p class="muted">Search and manage Admin, PA Member, and Server Admin accounts, including password/PIN updates.</p></section>
     <section class="panel" style="margin-top:1rem;">
       <form method="get" action="/user-management" class="grid">
         <div>
           <label>Search Users</label>
-          <input class="form-control" name="q" value="${escapeHtml(searchQuery)}" placeholder="Name, email, role, phone">
+          <input class="form-control" name="q" value="${escapeHtml(searchQuery)}" placeholder="Name, email, role, phone, ID number">
         </div>
         <div style="align-self:end;"><button class="btn" type="submit">Search</button></div>
       </form>
@@ -1502,31 +1549,43 @@ app.get('/user-management', requireRole(['Server Admin', 'Admin']), (req, res) =
       </table>
     </section>`;
 
-  sendPage(res, 'User Management', body, 200, { authenticated: true, user: req.session.user });
+  sendPage(res, 'Staff & User Management', body, 200, { authenticated: true, user: req.session.user });
 });
 
 app.post('/user-management/update', requireRole(['Server Admin', 'Admin']), (req, res) => {
   const emailAddress = String(req.body.emailAddress || '').trim().toLowerCase();
   const displayName = String(req.body.displayName || '').trim();
+  const idNumber = String(req.body.idNumber || '').trim();
   const phoneNumber = String(req.body.phoneNumber || '').trim();
   const address = String(req.body.address || '').trim();
   const role = String(req.body.role || '').trim();
   const password = String(req.body.password || '').trim();
+  const pin = String(req.body.pin || '').trim();
 
   const editableRoles = ['PA Member', 'Admin', 'Server Admin'];
   const target = users.find((entry) => entry.emailAddress.toLowerCase() === emailAddress);
 
-  if (!target || !displayName || !editableRoles.includes(role) || target.role === 'Resident') {
+  if (!target || !displayName || !idNumber || !editableRoles.includes(role) || target.role === 'Resident' || (pin && !/^\d{4,8}$/.test(pin))) {
+    res.redirect('/user-management');
+    return;
+  }
+
+  const duplicateId = users.find((entry) => entry !== target && String(entry.idNumber || '') === idNumber);
+  if (duplicateId) {
     res.redirect('/user-management');
     return;
   }
 
   target.displayName = displayName;
+  target.idNumber = idNumber;
   target.phoneNumber = phoneNumber;
   target.address = address;
   target.role = role;
   if (password) {
     target.password = password;
+  }
+  if (pin) {
+    target.pin = pin;
   }
 
   res.redirect('/user-management');
