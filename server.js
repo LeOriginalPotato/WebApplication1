@@ -326,10 +326,15 @@ function navMarkup(user) {
     <div class="site-nav-wrap">
       <a class="site-whatsapp-button" href="${escapeHtml(systemConfiguration.whatsAppChatLink)}" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp chat link">WhatsApp</a>
       <div class="site-profile-badge">${user.displayName} (${user.role})</div>
-      <div class="site-clock" id="siteClock"></div>
+      <div class="site-clock" data-site-clock></div>
       <details class="site-menu">
         <summary class="site-menu-toggle">Portal Menu</summary>
         <div class="site-menu-panel">
+          <div class="site-menu-mobile-top">
+            <a class="site-menu-mobile-whatsapp" href="${escapeHtml(systemConfiguration.whatsAppChatLink)}" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+            <div class="site-menu-mobile-profile">${user.displayName} (${user.role})</div>
+            <div class="site-menu-mobile-clock" data-site-clock></div>
+          </div>
           ${menuLinks}
           <form method="post" action="/logout" class="site-menu-form">
             <button type="submit">Sign Out</button>
@@ -351,6 +356,14 @@ function pageShell(title, body, options = {}) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${title}</title>
+  <meta property="og:title" content="Infrastructure Portal">
+  <meta property="og:site_name" content="Infrastructure Portal">
+  <meta property="og:image" content="/images/pa-logo.png">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Infrastructure Portal">
+  <meta name="twitter:image" content="/images/pa-logo.png">
+  <link rel="icon" type="image/png" href="/images/pa-logo.png">
+  <link rel="apple-touch-icon" href="/images/pa-logo.png">
   <link rel="stylesheet" href="/styles/site.css">
 </head>
 <body>
@@ -374,12 +387,15 @@ function pageShell(title, body, options = {}) {
   </footer>
   <script>
     (function () {
-      const clock = document.getElementById('siteClock');
-      if (!clock) return;
+      const clocks = document.querySelectorAll('[data-site-clock]');
+      if (!clocks.length) return;
       const tick = () => {
-        clock.textContent = new Date().toLocaleString('en-ZA', {
+        const text = new Date().toLocaleString('en-ZA', {
           weekday: 'short', year: 'numeric', month: 'short', day: '2-digit',
           hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+        });
+        clocks.forEach((clock) => {
+          clock.textContent = text;
         });
       };
       tick();
