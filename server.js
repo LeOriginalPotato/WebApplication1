@@ -97,26 +97,50 @@ app.use((req, res, next) => {
 
 function buildMenuItems(user) {
   const role = user?.role || '';
-  const items = [
-    { href: '/', label: 'Dashboard' },
-    { href: '/privacy', label: 'Compliance' }
-  ];
+  const isStaff = role === 'Server Admin' || role === 'Admin' || role === 'PA Member';
+  const isAdmin = role === 'Server Admin' || role === 'Admin';
 
   if (role === 'Resident') {
-    items.splice(1, 0, { href: '/report-incident', label: 'Report Incident' });
+    return [
+      { href: '/dashboard', label: 'Dashboard' },
+      { href: '/report-incident', label: 'Report Infrastructure Failure' },
+      { href: '/section78-dispute', label: 'Section 78 Dispute' },
+      { href: '/edit-my-user', label: 'Edit My User' },
+      { href: '/privacy', label: 'Compliance' }
+    ];
   }
 
-  if (role === 'Server Admin' || role === 'Admin' || role === 'PA Member') {
-    items.splice(1, 0,
-      { href: '/command-view', label: 'PA Oversight Tab' },
+  const items = [
+    { href: '/dashboard', label: 'Dashboard' }
+  ];
+
+  if (isStaff) {
+    items.push(
       { href: '/stats-hub', label: 'Stats Hub' },
-      { href: '/residents', label: 'Residents & Roles' }
+      { href: '/command-view', label: 'PA Oversight Tab' }
+    );
+  }
+
+  if (isAdmin) {
+    items.push(
+      { href: '/create-admin-user', label: 'Create Admin/PA User' },
+      { href: '/staff-management', label: 'Staff Management' },
+      { href: '/resident-management', label: 'Resident Management' }
     );
   }
 
   if (role === 'Server Admin') {
-    items.splice(items.length - 1, 0, { href: '/setup', label: 'System Configuration' });
+    items.push({ href: '/setup', label: 'System Configuration' });
   }
+
+  if (isStaff) {
+    items.push({ href: '/residents-export', label: 'Residents List Export' });
+  }
+
+  items.push(
+    { href: '/edit-my-user', label: 'Edit My User' },
+    { href: '/privacy', label: 'Compliance' }
+  );
 
   return items;
 }
@@ -1062,6 +1086,90 @@ app.post('/report-incident', requireRole(['Resident']), (req, res) => {
 app.get('/command-view', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => sendPage(res, 'Councillor & MMC Oversight', portalBody('Councillor & MMC Oversight', 'Operational oversight content can be connected here in the next iteration.', '<section class="grid" style="margin-top: 1rem;"><div class="panel"><h2>Workflow</h2><p>Placeholder for dispatch and inspection actions.</p></div><div class="panel"><h2>Status</h2><p>Placeholder for complaint status updates.</p></div></section>'), 200, { authenticated: true, user: req.session.user }));
 
 app.get('/stats-hub', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => sendPage(res, 'Public Live Statistics Hub', portalBody('Public Live Statistics Hub', 'The live stats hub is available as a Node.js page.', '<section class="grid" style="margin-top: 1rem;"><div class="panel"><h2>Total Issues</h2><p>0</p></div><div class="panel"><h2>Electrical</h2><p>0</p></div><div class="panel"><h2>Roads</h2><p>0</p></div><div class="panel"><h2>Water</h2><p>0</p></div></section>'), 200, { authenticated: true, user: req.session.user }));
+
+app.get('/create-admin-user', requireRole(['Server Admin', 'Admin']), (req, res) => {
+  const body = portalBody('Create Admin/PA User', 'Create managed staff accounts from the Residents & Roles tab.', '<section class="panel" style="margin-top:1rem;"><p>Use <a href="/residents">Residents & Roles</a> to create Admin, PA Member, or Server Admin users.</p></section>');
+  sendPage(res, 'Create Admin/PA User', body, 200, { authenticated: true, user: req.session.user });
+});
+
+app.get('/staff-management', requireRole(['Server Admin', 'Admin']), (req, res) => {
+  const staffRows = users
+    .filter((entry) => entry.role === 'Server Admin' || entry.role === 'Admin' || entry.role === 'PA Member')
+    .map((entry) => `<tr><td>${escapeHtml(entry.displayName)}</td><td>${escapeHtml(entry.role)}</td><td>${escapeHtml(entry.emailAddress)}</td><td>${escapeHtml(entry.phoneNumber || '-')}</td></tr>`)
+    .join('') || '<tr><td colspan="4">No staff accounts found.</td></tr>';
+
+  const body = `
+    <section class="hero-block"><h1>Staff Management</h1><p class="muted">View all PA Member, Admin, and Server Admin accounts.</p></section>
+    <section class="panel table-wrap" style="margin-top:1rem;">
+      <table class="table">
+        <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Number</th></tr></thead>
+        <tbody>${staffRows}</tbody>
+      </table>
+    </section>`;
+
+  sendPage(res, 'Staff Management', body, 200, { authenticated: true, user: req.session.user });
+});
+
+app.get('/resident-management', requireRole(['Server Admin', 'Admin']), (req, res) => {
+  const residentRows = users
+    .filter((entry) => entry.role === 'Resident')
+    .map((entry) => `<tr><td>${escapeHtml(entry.displayName)}</td><td>${escapeHtml(entry.emailAddress)}</td><td>${escapeHtml(entry.phoneNumber || '-')}</td><td>${escapeHtml(entry.address || '-')}</td></tr>`)
+    .join('') || '<tr><td colspan="4">No residents found.</td></tr>';
+
+  const body = `
+    <section class="hero-block"><h1>Resident Management</h1><p class="muted">Review resident records.</p></section>
+    <section class="panel table-wrap" style="margin-top:1rem;">
+      <table class="table">
+        <thead><tr><th>Name</th><th>Email</th><th>Number</th><th>Address</th></tr></thead>
+        <tbody>${residentRows}</tbody>
+      </table>
+    </section>`;
+
+  sendPage(res, 'Resident Management', body, 200, { authenticated: true, user: req.session.user });
+});
+
+app.get('/residents-export', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => {
+  const rows = users
+    .filter((entry) => entry.role === 'Resident')
+    .map((entry) => [
+      entry.displayName || '',
+      entry.emailAddress || '',
+      entry.phoneNumber || '',
+      entry.address || ''
+    ].map((value) => `"${String(value).replace(/"/g, '""')}"`).join(','));
+
+  const csv = ['Name,Email,Number,Address', ...rows].join('\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="residents_${new Date().toISOString().slice(0, 10)}.csv"`);
+  res.send(csv);
+});
+
+app.get('/edit-my-user', requireLogin, (req, res) => {
+  const account = users.find((entry) => entry.emailAddress.toLowerCase() === req.session.user.emailAddress.toLowerCase());
+  const body = `
+    <section class="hero-block"><h1>Edit My User</h1><p class="muted">Update your phone number and physical address.</p></section>
+    <section class="auth-shell" style="margin-top:1rem;">
+      <form method="post" action="/edit-my-user">
+        <div class="grid">
+          <div><label>Email Address</label><input class="form-control" value="${escapeHtml(account?.emailAddress || req.session.user.emailAddress)}" disabled></div>
+          <div><label>Phone Number</label><input class="form-control" name="phoneNumber" value="${escapeHtml(account?.phoneNumber || '')}"></div>
+          <div><label>Address</label><input class="form-control" name="address" value="${escapeHtml(account?.address || '')}"></div>
+        </div>
+        <p style="margin-top:1rem;"><button class="btn" type="submit">Save My Profile</button></p>
+      </form>
+    </section>`;
+
+  sendPage(res, 'Edit My User', body, 200, { authenticated: true, user: req.session.user });
+});
+
+app.post('/edit-my-user', requireLogin, (req, res) => {
+  const account = users.find((entry) => entry.emailAddress.toLowerCase() === req.session.user.emailAddress.toLowerCase());
+  if (account) {
+    account.phoneNumber = String(req.body.phoneNumber || '').trim();
+    account.address = String(req.body.address || '').trim();
+  }
+  res.redirect('/edit-my-user');
+});
 
 app.use((req, res) => {
   if (!req.session.user) {
