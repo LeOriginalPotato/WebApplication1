@@ -347,9 +347,9 @@ function pageShell(title, body, options = {}) {
 <body>
   <header class="site-header">
     <div class="site-header-inner">
-      <a class="site-brand" href="/dashboard" aria-label="PA Infrastructure Portal home">
+      <a class="site-brand" href="/dashboard" aria-label="Infrastructure Portal home">
         <img class="site-brand-logo" src="/images/pa-logo.png" alt="Patriotic Alliance logo">
-        <span class="site-brand-text">PA Infrastructure Portal</span>
+        <span class="site-brand-text">Infrastructure Portal</span>
       </a>
       ${headerContent}
     </div>
