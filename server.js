@@ -12,25 +12,6 @@ const systemConfiguration = {
   siteName: 'PA Infrastructure Portal',
   whatsAppChatLink: 'https://wa.me/0000000000'
 };
-const systemArchitecture = {
-  frontEnd: {
-    name: 'Mobile/Web Front-End',
-    host: 'paatwork.co.za',
-    transport: 'HTTPS JSON Payloads'
-  },
-  api: {
-    name: 'ASP.NET Core Web API',
-    hosting: 'Hosted via your secure cloud servers'
-  },
-  privateSqlDatabase: {
-    name: 'Private SQL Database',
-    stores: ['Users', 'Faults', 'GPS Heatmaps']
-  },
-  anonymizedAiParsingEngine: {
-    name: 'Anonymized AI Parsing Engine',
-    purpose: 'Ingests raw WhatsApp text exports, strips PII, counts and categories faults'
-  }
-};
 const incidents = [];
 const section78Disputes = [];
 const users = [
@@ -124,7 +105,6 @@ function buildMenuItems(user) {
       { href: '/dashboard', label: 'Dashboard' },
       { href: '/report-incident', label: 'Report Infrastructure Failure' },
       { href: '/section78-dispute', label: 'Section 78 Dispute' },
-      { href: '/system-architecture', label: 'System Architecture' },
       { href: '/edit-my-user', label: 'Edit My User' },
       { href: '/privacy', label: 'Compliance' }
     ];
@@ -158,7 +138,6 @@ function buildMenuItems(user) {
   }
 
   items.push(
-    { href: '/system-architecture', label: 'System Architecture' },
     { href: '/edit-my-user', label: 'Edit My User' },
     { href: '/privacy', label: 'Compliance' }
   );
@@ -491,6 +470,70 @@ function portalBody(title, intro, cards = '', extra = '') {
   `;
 }
 
+function extractCoordinatesFromGooglePin(googlePinUrl) {
+  const input = String(googlePinUrl || '').trim();
+  const coordinateMatch = input.match(/(-?\d{1,2}\.\d{3,}),\s*(-?\d{1,3}\.\d{3,})/);
+
+  if (!coordinateMatch) {
+    return null;
+  }
+
+  return {
+    latitude: Number(coordinateMatch[1]),
+    longitude: Number(coordinateMatch[2])
+  };
+}
+
+function buildIncidentRecord({ reporterEmail, reporterName, category, googlePinUrl, description, photoDataUrl = '' }) {
+  const coordinates = extractCoordinatesFromGooglePin(googlePinUrl);
+  if (!coordinates) {
+    return { error: 'Use a Google Maps link containing latitude and longitude.' };
+  }
+
+  const randomDigits = Math.floor(Math.random() * 90000) + 10000;
+  const ticketReference = `PA-RF-${new Date().getFullYear()}-${randomDigits}`;
+
+  const incident = {
+    ticketReference,
+    reporterEmail,
+    reporterName,
+    category,
+    description,
+    locationLabel: googlePinUrl,
+    latitude: coordinates.latitude,
+    longitude: coordinates.longitude,
+    photoDataUrl,
+    status: 'Logged',
+    createdAt: new Date().toISOString()
+  };
+
+  incidents.push(incident);
+  return { incident };
+}
+
+function buildHeatmapSummary() {
+  const buckets = new Map();
+
+  for (const entry of incidents) {
+    const latBucket = Number(entry.latitude || 0).toFixed(3);
+    const lonBucket = Number(entry.longitude || 0).toFixed(3);
+    const key = `${latBucket},${lonBucket}`;
+    const current = buckets.get(key) || {
+      coordinates: key,
+      latitude: Number(latBucket),
+      longitude: Number(lonBucket),
+      totalFaults: 0,
+      categories: {}
+    };
+
+    current.totalFaults += 1;
+    current.categories[entry.category] = (current.categories[entry.category] || 0) + 1;
+    buckets.set(key, current);
+  }
+
+  return Array.from(buckets.values()).sort((a, b) => b.totalFaults - a.totalFaults);
+}
+
 function loginBody(notice = '', returnUrl = '/dashboard') {
   return `
     <section class="auth-shell" style="max-width: 460px; margin: 0 auto;">
@@ -593,51 +636,6 @@ app.get('/dashboard', requireLogin, (req, res) => {
 });
 
 app.get('/privacy', requireLogin, (req, res) => sendPage(res, 'Privacy Policy', portalBody('Privacy Policy', 'Use this page to detail your site\'s privacy policy.', '<section class="panel" style="margin-top: 1rem;"><p>This is the Node.js version of the privacy page.</p></section>'), 200, { authenticated: true, user: req.session.user }));
-
-app.get('/system-architecture', requireLogin, (req, res) => {
-  const body = `
-    <section class="hero-block">
-      <h1>System Architecture Overview</h1>
-      <p class="muted">Current target architecture for paatwork.co.za, ingestion, analytics, and secure municipal operations.</p>
-    </section>
-    <section class="panel" style="margin-top: 1rem;">
-      <pre style="white-space: pre-wrap; margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;">[Mobile/Web Front-End] (paatwork.co.za)
-         │
-         ▼ (HTTPS JSON Payloads)
-[ASP.NET Core Web API] (Hosted via your secure cloud servers)
-         │
-         ├──► [Private SQL Database] (Stores Users, Faults, GPS Heatmaps)
-         │
-         └──► [Anonymized AI Parsing Engine] (Ingests raw WhatsApp text exports,
-                                              strips PII, counts & categories faults)</pre>
-    </section>
-    <section class="grid" style="margin-top: 1rem;">
-      <section class="panel">
-        <h2>${escapeHtml(systemArchitecture.frontEnd.name)}</h2>
-        <p><strong>Host:</strong> ${escapeHtml(systemArchitecture.frontEnd.host)}</p>
-        <p><strong>Payload Transport:</strong> ${escapeHtml(systemArchitecture.frontEnd.transport)}</p>
-      </section>
-      <section class="panel">
-        <h2>${escapeHtml(systemArchitecture.api.name)}</h2>
-        <p><strong>Hosting:</strong> ${escapeHtml(systemArchitecture.api.hosting)}</p>
-        <p><strong>Purpose:</strong> Secure orchestration layer for portal requests and backend workflows.</p>
-      </section>
-      <section class="panel">
-        <h2>${escapeHtml(systemArchitecture.privateSqlDatabase.name)}</h2>
-        <p><strong>Stores:</strong> ${escapeHtml(systemArchitecture.privateSqlDatabase.stores.join(', '))}</p>
-      </section>
-      <section class="panel">
-        <h2>${escapeHtml(systemArchitecture.anonymizedAiParsingEngine.name)}</h2>
-        <p>${escapeHtml(systemArchitecture.anonymizedAiParsingEngine.purpose)}</p>
-      </section>
-    </section>`;
-
-  sendPage(res, 'System Architecture', body, 200, { authenticated: true, user: req.session.user });
-});
-
-app.get('/api/system-architecture', requireLogin, (req, res) => {
-  res.status(200).json(systemArchitecture);
-});
 
 app.get('/login', (req, res) => {
   if (req.session.user) {
@@ -821,7 +819,7 @@ app.post('/setup', requireRole(['Server Admin']), (req, res) => {
   sendPage(res, 'Setup', body, 200, { authenticated: true, user: req.session.user });
 });
 
-app.post(whatsappImportWebhookPath, requireImportWebhook, async (req, res) => {
+async function processWhatsAppImportRequest(req, res) {
   try {
     const contentType = String(req.headers['content-type'] || '').toLowerCase();
     const payload = req.body;
@@ -862,7 +860,9 @@ app.post(whatsappImportWebhookPath, requireImportWebhook, async (req, res) => {
       details: error instanceof Error ? error.message : String(error)
     });
   }
-});
+}
+
+app.post(whatsappImportWebhookPath, requireImportWebhook, processWhatsAppImportRequest);
 
 app.get('/residents', requireRole(['Server Admin', 'Admin', 'PA Member']), (req, res) => {
   const residentRows = users
@@ -1106,30 +1106,21 @@ app.post('/report-incident', requireRole(['Resident']), (req, res) => {
     return;
   }
 
-  const coordinateMatch = googlePinUrl.match(/(-?\d{1,2}\.\d{3,}),\s*(-?\d{1,3}\.\d{3,})/);
-  if (!coordinateMatch) {
-    sendPage(res, 'Report Incident', portalBody('Report Incident', 'Could not detect coordinates in the Google pin link.', '<section class="notice-error" style="margin-top:1rem;">Use a Google Maps link containing latitude and longitude.</section>'), 400, { authenticated: true, user: req.session.user });
-    return;
-  }
-
-  const latitude = Number(coordinateMatch[1]);
-  const longitude = Number(coordinateMatch[2]);
-
-  const randomDigits = Math.floor(Math.random() * 90000) + 10000;
-  const ticketReference = `PA-RF-${new Date().getFullYear()}-${randomDigits}`;
-
-  incidents.push({
-    ticketReference,
+  const result = buildIncidentRecord({
     reporterEmail: req.session.user.emailAddress,
     reporterName: req.session.user.displayName,
     category,
+    googlePinUrl,
     description,
-    locationLabel: googlePinUrl,
-    latitude,
-    longitude,
-    photoDataUrl,
-    createdAt: new Date().toISOString()
+    photoDataUrl
   });
+
+  if (result.error) {
+    sendPage(res, 'Report Incident', portalBody('Report Incident', 'Could not detect coordinates in the Google pin link.', `<section class="notice-error" style="margin-top:1rem;">${escapeHtml(result.error)}</section>`), 400, { authenticated: true, user: req.session.user });
+    return;
+  }
+
+  const { incident } = result;
 
   const body = `
     <section class="hero-block">
@@ -1137,13 +1128,13 @@ app.post('/report-incident', requireRole(['Resident']), (req, res) => {
       <p class="muted">Your incident was submitted successfully.</p>
     </section>
     <section class="notice-success" style="margin-top: 1rem;">
-      Ticket <strong>${escapeHtml(ticketReference)}</strong> logged at coordinates <strong>${escapeHtml(String(latitude))}, ${escapeHtml(String(longitude))}</strong>.
+      Ticket <strong>${escapeHtml(incident.ticketReference)}</strong> logged at coordinates <strong>${escapeHtml(String(incident.latitude))}, ${escapeHtml(String(incident.longitude))}</strong>.
     </section>
     <section class="panel" style="margin-top:1rem;">
-      <p><strong>Category:</strong> ${escapeHtml(category)}</p>
-      <p><strong>Description:</strong> ${escapeHtml(description)}</p>
-      <p><strong>Google Pin:</strong> <a href="${escapeHtml(googlePinUrl)}" target="_blank" rel="noopener noreferrer">Open Map</a></p>
-      ${photoDataUrl ? `<p><strong>Photo:</strong> <a href="${escapeHtml(photoDataUrl)}" target="_blank" rel="noopener noreferrer">View Attachment</a></p>` : '<p><strong>Photo:</strong> Not supplied</p>'}
+      <p><strong>Category:</strong> ${escapeHtml(incident.category)}</p>
+      <p><strong>Description:</strong> ${escapeHtml(incident.description)}</p>
+      <p><strong>Google Pin:</strong> <a href="${escapeHtml(incident.locationLabel)}" target="_blank" rel="noopener noreferrer">Open Map</a></p>
+      ${incident.photoDataUrl ? `<p><strong>Photo:</strong> <a href="${escapeHtml(incident.photoDataUrl)}" target="_blank" rel="noopener noreferrer">View Attachment</a></p>` : '<p><strong>Photo:</strong> Not supplied</p>'}
     </section>`;
 
   sendPage(res, 'Incident Logged', body, 200, { authenticated: true, user: req.session.user });
@@ -1236,6 +1227,75 @@ app.post('/edit-my-user', requireLogin, (req, res) => {
   }
   res.redirect('/edit-my-user');
 });
+
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    service: 'PA Infrastructure API',
+    status: 'ok',
+    environment: systemConfiguration.environmentName,
+    timeUtc: new Date().toISOString()
+  });
+});
+
+app.get('/api/faults', requireLogin, (req, res) => {
+  const role = req.session.user.role;
+  const isStaff = role === 'Server Admin' || role === 'Admin' || role === 'PA Member';
+  const list = isStaff
+    ? incidents
+    : incidents.filter((entry) => entry.reporterEmail === req.session.user.emailAddress);
+
+  res.status(200).json({
+    total: list.length,
+    faults: list
+  });
+});
+
+app.post('/api/faults', requireLogin, (req, res) => {
+  const category = String(req.body.category || '').trim();
+  const googlePinUrl = String(req.body.googlePinUrl || '').trim();
+  const description = String(req.body.description || '').trim();
+  const photoDataUrl = String(req.body.photoDataUrl || '').trim();
+
+  if (!category || !googlePinUrl || !description) {
+    res.status(400).json({ message: 'category, googlePinUrl, and description are required.' });
+    return;
+  }
+
+  const result = buildIncidentRecord({
+    reporterEmail: req.session.user.emailAddress,
+    reporterName: req.session.user.displayName,
+    category,
+    googlePinUrl,
+    description,
+    photoDataUrl
+  });
+
+  if (result.error) {
+    res.status(400).json({ message: result.error });
+    return;
+  }
+
+  res.status(201).json({
+    message: 'Fault logged successfully.',
+    fault: result.incident
+  });
+});
+
+app.get('/api/heatmap', requireLogin, (req, res) => {
+  const role = req.session.user.role;
+  const isStaff = role === 'Server Admin' || role === 'Admin' || role === 'PA Member';
+  if (!isStaff) {
+    res.status(403).json({ message: 'Staff access required.' });
+    return;
+  }
+
+  res.status(200).json({
+    totalFaults: incidents.length,
+    heatmap: buildHeatmapSummary()
+  });
+});
+
+app.post('/api/whatsapp/import', requireImportWebhook, processWhatsAppImportRequest);
 
 app.use((req, res) => {
   if (!req.session.user) {
