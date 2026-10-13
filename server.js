@@ -13,6 +13,7 @@ const systemConfiguration = {
   whatsAppChatLink: 'https://wa.me/0000000000'
 };
 const incidents = [];
+const section78Disputes = [];
 const users = [
   {
     emailAddress: 'jeanmari@thesolution.co.za',
@@ -374,6 +375,66 @@ function renderIncidentRows() {
     .join('') || '<tr><td colspan="6">No incidents logged yet.</td></tr>';
 }
 
+function renderResidentQueueRows(user) {
+  return incidents
+    .filter((entry) => entry.reporterEmail === user.emailAddress)
+    .slice()
+    .reverse()
+    .slice(0, 15)
+    .map((entry) => `
+      <li class="ticket-item">
+        <div>
+          <div class="ticket-ref">${escapeHtml(entry.ticketReference)}</div>
+          <div class="ticket-date">${escapeHtml(entry.category)} · ${escapeHtml(entry.locationLabel)}</div>
+          <div class="ticket-date">${escapeHtml(new Date(entry.createdAt).toLocaleString('en-ZA'))}</div>
+        </div>
+        <span class="status-pill status-${escapeHtml((entry.status || 'logged').toLowerCase())}">${escapeHtml(entry.status || 'Logged')}</span>
+      </li>`)
+    .join('') || '<li class="ticket-item"><div class="ticket-date">No complaints logged yet.</div></li>';
+}
+
+function buildResidentDashboardBody(user) {
+  const firstName = (String(user.displayName || '').split(' ')[0] || 'Leader');
+  const queueItems = renderResidentQueueRows(user);
+
+  return `
+    <section class="hero-block resident-hero">
+      <h1>Good Day, ${escapeHtml(firstName)}. Let's fix Randfontein together.</h1>
+      <section class="sector-grid">
+        <article class="sector-item">
+          <span class="sector-label">Localized Sector</span>
+          <strong>Mohlakeng / Rural Holdings Desk</strong>
+        </article>
+        <article class="sector-item">
+          <span class="sector-label">Operations Window</span>
+          <strong>Weekend Complaint Consolidation Active</strong>
+        </article>
+      </section>
+    </section>
+
+    <section class="action-grid">
+      <article class="action-card">
+        <h2>🚨 Report Infrastructure Failure</h2>
+        <p>Log urgent municipal infrastructure issues with geolocation and proof attachment.</p>
+        <a class="btn" href="/report-incident">Open Report Form</a>
+      </article>
+      <article class="action-card">
+        <h2>Mass Rates Objection Portal</h2>
+        <p>Submit a structural Section 78 dispute for incorrect municipal categorization and valuation impacts.</p>
+        <div class="check-wrap">
+          <label class="form-check-row"><input type="checkbox" checked disabled> I confirm that I did not receive a formal municipal reclassification notice.</label>
+          <label class="form-check-row"><input type="checkbox" checked disabled> I confirm that no lawful Section 78 prior engagement documents were delivered to my address.</label>
+        </div>
+        <a class="btn" href="/section78-dispute">File Section 78 Dispute</a>
+      </article>
+    </section>
+
+    <section class="queue-card">
+      <h2>My Live Action Queue</h2>
+      <ul class="ticket-list">${queueItems}</ul>
+    </section>`;
+}
+
 function portalBody(title, intro, cards = '', extra = '') {
   return `
     <section class="hero-block">
@@ -434,6 +495,14 @@ function requireRole(allowedRoles, redirectTarget = '/dashboard') {
 }
 
 app.get('/', requireLogin, (req, res) => {
+  const user = req.session.user;
+  const isResident = user.role === 'Resident';
+
+  if (isResident) {
+    sendPage(res, 'Resident Dashboard', buildResidentDashboardBody(user), 200, { authenticated: true, user });
+    return;
+  }
+
   const cards = `
     <section class="grid" style="margin-top: 1rem;">
       <section class="panel">
@@ -451,23 +520,29 @@ app.get('/', requireLogin, (req, res) => {
     </section>
     <section class="panel" style="margin-top: 1rem;">
       <h2>Live Queue</h2>
-      <p><strong>Logged:</strong> 0</p>
-      <p><strong>Resolved:</strong> 0</p>
-      <p><strong>Pending:</strong> 0</p>
+      <p><strong>Logged:</strong> ${incidents.filter((entry) => String(entry.status || 'Logged').toLowerCase() === 'logged').length}</p>
+      <p><strong>Resolved:</strong> ${incidents.filter((entry) => String(entry.status || '').toLowerCase() === 'resolved').length}</p>
+      <p><strong>Pending:</strong> ${incidents.filter((entry) => String(entry.status || '').toLowerCase() === 'pending').length}</p>
     </section>`;
 
-  sendPage(res, 'PA Infrastructure Portal', portalBody('Good Day, Leader. Let\'s fix Randfontein together.', 'You are signed in and viewing the portal dashboard.', cards), 200, { authenticated: true, user: req.session.user });
+  sendPage(res, 'PA Infrastructure Portal', portalBody('Good Day, Leader. Let\'s fix Randfontein together.', 'You are signed in and viewing the portal dashboard.', cards), 200, { authenticated: true, user });
 });
 
 app.get('/dashboard', requireLogin, (req, res) => {
+  const user = req.session.user;
+  if (user.role === 'Resident') {
+    sendPage(res, 'Resident Dashboard', buildResidentDashboardBody(user), 200, { authenticated: true, user });
+    return;
+  }
+
   const cards = `
     <section class="grid" style="margin-top: 1rem;">
-      <section class="panel"><h2>Logged Complaints</h2><p>0</p></section>
-      <section class="panel"><h2>Resolved</h2><p>0</p></section>
-      <section class="panel"><h2>Pending</h2><p>0</p></section>
+      <section class="panel"><h2>Logged Complaints</h2><p>${incidents.filter((entry) => String(entry.status || 'Logged').toLowerCase() === 'logged').length}</p></section>
+      <section class="panel"><h2>Resolved</h2><p>${incidents.filter((entry) => String(entry.status || '').toLowerCase() === 'resolved').length}</p></section>
+      <section class="panel"><h2>Pending</h2><p>${incidents.filter((entry) => String(entry.status || '').toLowerCase() === 'pending').length}</p></section>
     </section>`;
 
-  sendPage(res, 'Dashboard', portalBody('Resident Dashboard', 'This is the main landing page after login.', cards), 200, { authenticated: true, user: req.session.user });
+  sendPage(res, 'Dashboard', portalBody('Staff Dashboard', 'This is the main landing page after login.', cards), 200, { authenticated: true, user });
 });
 
 app.get('/privacy', requireLogin, (req, res) => sendPage(res, 'Privacy Policy', portalBody('Privacy Policy', 'Use this page to detail your site\'s privacy policy.', '<section class="panel" style="margin-top: 1rem;"><p>This is the Node.js version of the privacy page.</p></section>'), 200, { authenticated: true, user: req.session.user }));
@@ -844,6 +919,88 @@ app.get('/report-incident', requireRole(['Resident']), (req, res) => {
     </section>`;
 
   sendPage(res, 'Report Incident', body, 200, { authenticated: true, user: req.session.user });
+});
+
+app.get('/section78-dispute', requireRole(['Resident']), (req, res) => {
+  const body = `
+    <section class="hero-block">
+      <h1>Section 78 Dispute</h1>
+      <p class="muted">Submit your mass rates objection details for PA follow-up and municipal escalation.</p>
+    </section>
+    <section class="auth-shell" style="margin-top:1rem;">
+      <form method="post" action="/section78-dispute">
+        <div class="grid">
+          <div><label>Property Address</label><input class="form-control" name="propertyAddress" required></div>
+          <div><label>Municipal Account Number</label><input class="form-control" name="municipalAccountNumber" required></div>
+          <div><label>Erf / Stand Number</label><input class="form-control" name="erfNumber" required></div>
+          <div><label>Title Deed Number</label><input class="form-control" name="titleDeedNumber" required></div>
+          <div><label>Actual Dominant Use</label><input class="form-control" name="actualDominantUse" required></div>
+          <div><label>Disputed Category</label><input class="form-control" name="propertyCategoryDispute" required></div>
+        </div>
+        <div style="margin-top:1rem;">
+          <label>Resident Statement</label>
+          <textarea class="form-control" name="ownerStatement" rows="5" required></textarea>
+        </div>
+        <div class="check-wrap" style="margin-top:1rem;">
+          <label class="form-check-row"><input type="checkbox" name="noFormalNoticeReceived" value="true" required> I confirm that I did not receive a formal municipal reclassification notice.</label>
+          <label class="form-check-row"><input type="checkbox" name="noSection78DocumentsReceived" value="true" required> I confirm that no lawful Section 78 prior engagement documents were delivered to my address.</label>
+          <label class="form-check-row"><input type="checkbox" name="popiaConsent" value="true" required> I consent to PA leadership representing my billing query with the Municipal Valuer under POPIA.</label>
+        </div>
+        <p style="margin-top: 1rem;"><button class="btn" type="submit">Submit Section 78 Dispute</button></p>
+      </form>
+    </section>`;
+
+  sendPage(res, 'Section 78 Dispute', body, 200, { authenticated: true, user: req.session.user });
+});
+
+app.post('/section78-dispute', requireRole(['Resident']), (req, res) => {
+  const propertyAddress = String(req.body.propertyAddress || '').trim();
+  const municipalAccountNumber = String(req.body.municipalAccountNumber || '').trim();
+  const erfNumber = String(req.body.erfNumber || '').trim();
+  const titleDeedNumber = String(req.body.titleDeedNumber || '').trim();
+  const actualDominantUse = String(req.body.actualDominantUse || '').trim();
+  const propertyCategoryDispute = String(req.body.propertyCategoryDispute || '').trim();
+  const ownerStatement = String(req.body.ownerStatement || '').trim();
+  const noFormalNoticeReceived = String(req.body.noFormalNoticeReceived || '').toLowerCase() === 'true';
+  const noSection78DocumentsReceived = String(req.body.noSection78DocumentsReceived || '').toLowerCase() === 'true';
+  const popiaConsent = String(req.body.popiaConsent || '').toLowerCase() === 'true';
+
+  if (!propertyAddress || !municipalAccountNumber || !erfNumber || !titleDeedNumber || !actualDominantUse || !propertyCategoryDispute || !ownerStatement || !noFormalNoticeReceived || !noSection78DocumentsReceived || !popiaConsent) {
+    sendPage(res, 'Section 78 Dispute', portalBody('Section 78 Dispute', 'Missing required information or consent.', '<section class="notice-error" style="margin-top:1rem;">Please complete all fields and confirm all declarations before submission.</section>'), 400, { authenticated: true, user: req.session.user });
+    return;
+  }
+
+  const disputeReference = `S78-RF-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 90000) + 10000)}`;
+  section78Disputes.push({
+    disputeReference,
+    residentEmail: req.session.user.emailAddress,
+    residentName: req.session.user.displayName,
+    propertyAddress,
+    municipalAccountNumber,
+    erfNumber,
+    titleDeedNumber,
+    actualDominantUse,
+    propertyCategoryDispute,
+    ownerStatement,
+    noFormalNoticeReceived,
+    noSection78DocumentsReceived,
+    popiaConsent,
+    submittedAt: new Date().toISOString()
+  });
+
+  const body = `
+    <section class="hero-block">
+      <h1>Section 78 Dispute Submitted</h1>
+      <p class="muted">Your dispute has been logged for PA review.</p>
+    </section>
+    <section class="notice-success" style="margin-top: 1rem;">Reference: <strong>${escapeHtml(disputeReference)}</strong></section>
+    <section class="panel" style="margin-top:1rem;">
+      <p><strong>Property:</strong> ${escapeHtml(propertyAddress)}</p>
+      <p><strong>Municipal Account:</strong> ${escapeHtml(municipalAccountNumber)}</p>
+      <p><strong>Status:</strong> Submitted to PA leadership queue.</p>
+    </section>`;
+
+  sendPage(res, 'Section 78 Dispute Submitted', body, 200, { authenticated: true, user: req.session.user });
 });
 
 app.post('/report-incident', requireRole(['Resident']), (req, res) => {
