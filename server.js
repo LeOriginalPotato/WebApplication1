@@ -82,7 +82,7 @@ app.use((req, res, next) => {
     return;
   }
 
-  if (req.path === loginPath) {
+  if (req.path === loginPath || req.path === '/register') {
     next();
     return;
   }
@@ -466,6 +466,8 @@ function loginBody(notice = '', returnUrl = '/dashboard') {
         </div>
         <p style="margin-top: 1rem;"><button class="btn" type="submit">Sign In</button></p>
       </form>
+      <p class="muted" style="margin-top: 1rem;">No resident account yet?</p>
+      <p><a class="btn" href="/register">Create Resident Account</a></p>
     </section>`;
 }
 
