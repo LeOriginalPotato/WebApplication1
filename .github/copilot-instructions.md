@@ -19,3 +19,7 @@
 - System configuration must allow setting the Google Maps API key for live maps.
 - Admin+ users must be able to edit users, including passwords, and escalate incidents.
 - Active PA members should receive notifications when new incidents are reported.
+
+## New Application
+- User wants a completely separate repository for the new South Africa LGE 2026 voters-roll import/access app, with strict authenticated access only for user accounts they create.
+- Implement the voters-roll system in Node.js and use PostgreSQL for the database, ensuring it can be deployed through cPanel.

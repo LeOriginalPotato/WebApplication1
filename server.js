@@ -391,7 +391,7 @@ function pageShell(title, body, options = {}) {
   </main>
   <footer class="site-footer">
     <div class="site-footer-inner">
-      <small>Node.js version for cPanel deployment</small>
+      <small>PA Infrastructure Service Portal</small>
       <small>POPIA Compliant Data System</small>
     </div>
   </footer>
@@ -620,7 +620,7 @@ function loginBody(notice = '', returnUrl = '/dashboard') {
         <div style="display:grid; gap: 1rem;">
           <div>
             <label>Email Address</label>
-            <input class="form-control" type="email" name="emailAddress" placeholder="jeanmari@thesolution.co.za" required>
+            <input class="form-control" type="email" name="emailAddress" placeholder="yourname@example.com" required>
           </div>
           <div>
             <label id="credentialLabel">PIN</label>
@@ -731,7 +731,7 @@ app.get('/dashboard', requireLogin, (req, res) => {
   sendPage(res, 'Dashboard', portalBody('Staff Dashboard', 'This is the main landing page after login.', cards), 200, { authenticated: true, user });
 });
 
-app.get('/privacy', requireLogin, (req, res) => sendPage(res, 'Privacy Policy', portalBody('Privacy Policy', 'Use this page to detail your site\'s privacy policy.', '<section class="panel" style="margin-top: 1rem;"><p>This is the Node.js version of the privacy page.</p></section>'), 200, { authenticated: true, user: req.session.user }));
+app.get('/privacy', requireLogin, (req, res) => sendPage(res, 'Privacy Policy', portalBody('Privacy Policy', 'Use this page to detail your site\'s privacy policy.', '<section class="panel" style="margin-top: 1rem;"><p>This page contains your portal privacy and data handling policy details.</p></section>'), 200, { authenticated: true, user: req.session.user }));
 
 app.get('/login', (req, res) => {
   if (req.session.user) {
