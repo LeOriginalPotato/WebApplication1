@@ -8,6 +8,7 @@
 - User wants the Patriotic Alliance logo displayed in the site header branding, with a larger header logo that maintains original quality (higher resolution/vector quality) and 'PA' removed from the header title text.
 - User wants the 'Create Admin/PA User' tab removed from the portal because it is not useful.
 - When a requested implementation breaks the app, perform a full rollback of local and GitHub repositories to the prior known-good state.
+- User wants the normal website to also be delivered as an Android app that primarily displays the existing website content (web wrapper approach). The app behavior should mirror the website login/register/dashboard flow, named 'PA At Work', with package ID 'org.paatwork.app', and links should not open in an external browser.
 
 ## User Management
 - Combine staff and user management into one tab/page.
