@@ -1,0 +1,8 @@
+node_modules
+.git
+.env
+.env.*
+.demo-accounts.local
+storage/photos/*
+!storage/photos/.gitkeep
+*.log

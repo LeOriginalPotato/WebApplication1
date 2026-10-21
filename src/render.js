@@ -200,7 +200,7 @@ function loginPage(opts) {
 
 function registerPage(opts) {
   const values = opts.values || {};
-  const inner = `<section class="panel">
+  const inner = `<section class="panel form-shell">
     <h1>Register</h1>
     <p class="muted">Create a resident account so you can log service problems and follow them.</p>
     <form method="post" action="/register">
@@ -227,12 +227,14 @@ function registerPage(opts) {
 
 function residentHomePage(opts) {
   const first = (opts.user.displayName || '').split(' ')[0] || 'there';
-  const list = opts.complaints.slice(0, 3).map((item) => complaintCard(item, `/my-reports/${item.id}`)).join('')
-    || '<p class="muted">You have not logged a complaint yet.</p>';
+  const cards = opts.complaints.slice(0, 3).map((item) => complaintCard(item, `/my-reports/${item.id}`)).join('');
+  const list = cards ? `<div class="card-list">${cards}</div>` : '<p class="muted">You have not logged a complaint yet.</p>';
   const inner = `<section class="hero">
-      <h1>Good day, ${esc(first)}.</h1>
-      <p>Report a service problem in your area, then follow it here.</p>
-      <p><a class="btn" href="/report">Report a problem</a></p>
+      <div>
+        <h1>Good day, ${esc(first)}.</h1>
+        <p>Report a service problem in your area, then follow it here.</p>
+      </div>
+      <p class="hero-action"><a class="btn" href="/report">Report a problem</a></p>
     </section>
     <section class="totals" aria-label="Public complaint totals">
       <article><span>On record</span><strong>${esc(opts.totals.total)}</strong></article>
@@ -248,7 +250,7 @@ function reportPage(opts) {
   const tiles = CATEGORIES.map((category) => `
     <label class="tile"><input type="radio" name="category" value="${esc(category)}"${values.category === category ? ' checked' : ''} required><span>${esc(category)}</span></label>
   `).join('');
-  const inner = `<section class="panel">
+  const inner = `<section class="panel form-shell">
     <h1>Report a problem</h1>
     <p class="muted">Choose what is wrong, say where it is, and add a photo if you can.</p>
     <form method="post" action="/report" enctype="multipart/form-data">
@@ -257,16 +259,17 @@ function reportPage(opts) {
       <label>What happened?<textarea class="control" name="description" rows="4" required>${esc(values.description)}</textarea></label>
       <label>Street address<input class="control" name="address" value="${esc(values.address)}" required></label>
       ${areaFields(opts.areas, values)}
-      <div class="location-row">
-        <button class="btn secondary" type="button" id="useLocation">Use my location</button>
-        <p id="locStatus" class="muted"></p>
+      <div class="location-block">
+        <div class="location-row">
+          <button class="btn secondary" type="button" id="useLocation">Use my location</button>
+          <p id="locStatus" class="loc-status${values.latitude && values.longitude ? ' is-captured' : ''}" role="status">${values.latitude && values.longitude ? '<span class="map-pin" aria-hidden="true"></span> Location captured. Check the street address.' : ''}</p>
+        </div>
+        <p class="muted">Optional. If location is blocked, the street address is enough.</p>
       </div>
-      <div class="grid">
-        <label>Latitude<input class="control" id="latitude" name="latitude" value="${esc(values.latitude)}" inputmode="decimal"></label>
-        <label>Longitude<input class="control" id="longitude" name="longitude" value="${esc(values.longitude)}" inputmode="decimal"></label>
-      </div>
-      <label class="photo-field">Photo<input class="control" id="photo" type="file" name="photo" accept="image/*" capture="environment"></label>
-      <img id="photoPreview" class="preview" alt="Selected photo preview" hidden>
+      <input type="hidden" id="latitude" name="latitude" value="${esc(values.latitude)}">
+      <input type="hidden" id="longitude" name="longitude" value="${esc(values.longitude)}">
+      <label class="photo-field">Photo <span class="muted">(optional)</span><input class="control" id="photo" type="file" name="photo" accept="image/*" capture="environment"></label>
+      <div id="photoPreview"></div>
       <div class="submit-bar"><button class="btn" type="submit">Submit complaint</button></div>
     </form>
   </section>
@@ -279,23 +282,46 @@ function reportPage(opts) {
     var lat = document.getElementById('latitude');
     var lng = document.getElementById('longitude');
     var status = document.getElementById('locStatus');
+    var previewUrl = '';
+    function setStatus(kind, message) {
+      if (!status) return;
+      status.className = 'loc-status' + (kind ? ' is-' + kind : '');
+      if (kind === 'captured') {
+        status.innerHTML = '<span class="map-pin" aria-hidden="true"></span> ' + message;
+      } else {
+        status.textContent = message;
+      }
+    }
     if (input && preview) {
       input.addEventListener('change', function () {
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        previewUrl = '';
+        preview.replaceChildren();
         var file = input.files && input.files[0];
-        if (!file) { preview.hidden = true; return; }
-        preview.src = URL.createObjectURL(file);
-        preview.hidden = false;
+        if (!file) return;
+        previewUrl = URL.createObjectURL(file);
+        var img = document.createElement('img');
+        img.className = 'preview';
+        img.alt = 'Selected photo';
+        img.src = previewUrl;
+        preview.appendChild(img);
       });
     }
-    if (loc && navigator.geolocation) {
+    if (loc) {
       loc.addEventListener('click', function () {
-        status.textContent = 'Finding your location…';
+        if (!navigator.geolocation) {
+          setStatus('fallback', 'This browser cannot share location. The street address is enough.');
+          return;
+        }
+        setStatus('', 'Finding your location…');
         navigator.geolocation.getCurrentPosition(function (pos) {
           lat.value = pos.coords.latitude.toFixed(6);
           lng.value = pos.coords.longitude.toFixed(6);
-          status.textContent = 'Location added. Check the street address as well.';
+          setStatus('captured', 'Location captured. Check the street address.');
         }, function () {
-          status.textContent = 'Location is unavailable. Type the address instead.';
+          lat.value = '';
+          lng.value = '';
+          setStatus('fallback', 'Location was not allowed. The street address is enough.');
         }, { enableHighAccuracy: true, timeout: 10000 });
       });
     }
@@ -305,8 +331,8 @@ function reportPage(opts) {
 }
 
 function myReportsPage(opts) {
-  const list = opts.complaints.map((item) => complaintCard(item, `/my-reports/${item.id}`)).join('')
-    || '<p class="muted">No complaints yet. <a href="/report">Report a problem</a>.</p>';
+  const cards = opts.complaints.map((item) => complaintCard(item, `/my-reports/${item.id}`)).join('');
+  const list = cards ? `<div class="card-list">${cards}</div>` : '<p class="muted">No complaints yet. <a href="/report">Report a problem</a>.</p>';
   return page({ ...opts, title: 'My reports', active: 'reports' }, `<h1>My reports</h1>${list}`);
 }
 
@@ -322,7 +348,7 @@ function reportDetailPage(opts) {
     ? `<img class="photo" src="/complaints/${complaint.id}/photo" alt="Photo you attached">`
     : '';
   const inner = `<p><a href="/my-reports">Back to my reports</a></p>
-    <article class="panel">
+    <article class="panel form-shell">
       <div class="card-top"><h1>${esc(complaint.ticketReference)}</h1>${pill(complaint.status)}</div>
       <p><strong>${esc(complaint.category)}</strong> · ${esc(placeLabel(complaint))}</p>
       <p>${esc(complaint.address)}</p>
@@ -346,8 +372,8 @@ function complaintsPage(opts) {
     const label = category || 'All categories';
     return `<option value="${esc(category)}"${filters.category === category ? ' selected' : ''}>${label}</option>`;
   }).join('');
-  const list = opts.complaints.map((item) => complaintCard(item, `/complaints/${item.id}`)).join('')
-    || '<p class="muted">No complaints in your areas yet.</p>';
+  const cards = opts.complaints.map((item) => complaintCard(item, `/complaints/${item.id}`)).join('');
+  const list = cards ? `<div class="card-list">${cards}</div>` : '<p class="muted">No complaints in your areas yet.</p>';
   const inner = `<h1>Complaints</h1>
     <p class="muted">Location, description, photo, and category only. Resident contact details are not shown.</p>
     <form class="filters" method="get" action="/complaints">
@@ -383,15 +409,14 @@ function complaintDetailPage(opts) {
       <button class="btn secondary" type="submit">Save referral</button>
     </form>` : (complaint.escalationLevel ? `<p>Referred to ${esc(complaint.escalationLevel)}</p>` : '');
   const inner = `<p><a href="/complaints">Back to complaints</a></p>
-    <article class="panel">
+    <article class="panel form-shell">
       <div class="card-top"><h1>${esc(complaint.ticketReference)}</h1>${pill(complaint.status)}</div>
       <p><strong>${esc(complaint.category)}</strong> · ${esc(placeLabel(complaint))}</p>
       <p>${esc(complaint.address)}</p>
       ${mapLink}
       <p>${esc(complaint.description)}</p>
       ${photo}
-      ${dispatch}
-      ${complete}
+      <div class="action-stack">${dispatch}${complete}</div>
       ${escalate}
       <h2>Updates</h2>
       ${timeline(opts.updates)}
@@ -413,20 +438,21 @@ function mapPage(opts) {
   const inner = `<h1>Map</h1>
     <p class="muted">${esc(opts.scopeLabel)}</p>
     <section class="totals"><article><span>On record</span><strong>${esc(opts.total)}</strong></article><article><span>Resolved</span><strong>${esc(opts.resolved)}</strong></article></section>
-    <section class="totals">${counts}</section>
-    ${pins}`;
+    <section class="totals category-totals">${counts}</section>
+    <div class="card-list">${pins}</div>`;
   return page({ ...opts, title: 'Map', active: 'map' }, inner);
 }
 
 function peoplePage(opts) {
-  const residents = opts.residents.map((person) => `
+  const residentCards = opts.residents.map((person) => `
     <article class="card person">
       <label class="check"><input type="checkbox" name="selected" value="${person.id}"> <strong>${esc(person.display_name)}</strong></label>
       <p>${esc(person.email)}</p>
       <p>${esc(person.phone || 'No phone')} · ${esc([person.municipality_name, person.ward_name].filter(Boolean).join(' · ') || 'No area')}</p>
       <p>${esc(person.address || '')}</p>
       ${opts.showId && person.id_number ? `<p>ID ${esc(person.id_number)}</p>` : ''}
-    </article>`).join('') || '<p class="muted">No residents in your areas.</p>';
+    </article>`).join('');
+  const residents = residentCards ? `<div class="card-list">${residentCards}</div>` : '<p class="muted">No residents in your areas.</p>';
   const areaChecks = (selected) => opts.areas.map((area) => {
     const checked = selected && selected.includes(area.id) ? ' checked' : '';
     const label = area.kind === 'ward' && area.parent_name ? `${area.parent_name} · ${area.name}` : area.name;
@@ -520,7 +546,7 @@ function notificationsPage(opts) {
 
 function profilePage(opts) {
   const user = opts.user;
-  const inner = `<section class="panel">
+  const inner = `<section class="panel form-shell">
     <h1>Profile</h1>
     <form method="post" action="/profile">
       ${csrfField(opts.csrf)}
@@ -538,7 +564,7 @@ function profilePage(opts) {
 
 function section78Page(opts) {
   const previous = (opts.previous || []).map((item) => `<article class="card"><strong>${esc(item.reference_code)}</strong><p>${esc(item.property_address)}</p><p class="muted">${esc(formatWhen(item.created_at))}</p></article>`).join('');
-  const inner = `<section class="panel">
+  const inner = `<section class="panel form-shell">
     <h1>Rates objection</h1>
     <p class="muted">This is for a municipal rates or property-category dispute. It is separate from a pothole or outage report.</p>
     <form method="post" action="/section78">
@@ -580,6 +606,7 @@ function settingsPage(opts) {
   const areaList = opts.areas.map((area) => `<li>${esc(area.kind === 'ward' && area.parent_name ? `${area.parent_name} · ${area.name}` : area.name)} <span class="muted">${esc(area.kind)}</span></li>`).join('');
   const muniOptions = municipalities.map((area) => `<option value="${area.id}">${esc(area.name)}</option>`).join('');
   const inner = `<h1>Settings</h1>
+    <div class="settings-grid">
     <section class="panel">
       <form method="post" action="/settings">
         ${csrfField(opts.csrf)}
@@ -605,12 +632,13 @@ function settingsPage(opts) {
         <label>New ward<input class="control" name="name" required></label>
         <button class="btn secondary" type="submit">Add ward</button>
       </form>
-    </section>`;
+    </section>
+    </div>`;
   return page({ ...opts, title: 'Settings', active: 'more' }, inner);
 }
 
 function privacyPage(opts) {
-  const inner = `<article class="panel">
+  const inner = `<article class="panel form-shell">
     <h1>Privacy</h1>
     <p>PA At Work stores the details a resident gives when they register or log a complaint: name, contact details, the area, the description, and any photo.</p>
     <p>A resident can see their own complaints and the status updates on those complaints. They can also see how many complaints are on record and how many are resolved. Those totals do not include other people's complaints.</p>

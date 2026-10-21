@@ -1,0 +1,38 @@
+# Local laptop only. The database password below is not a site login
+# and must not be reused on cPanel. Account passwords come from `npm run dev:seed`.
+services:
+  db:
+    image: mariadb:10.11
+    environment:
+      MARIADB_DATABASE: pa_at_work
+      MARIADB_USER: pa_at_work
+      MARIADB_PASSWORD: local-dev-only
+      MARIADB_ROOT_PASSWORD: local-dev-only
+    ports:
+      - "3307:3306"
+    volumes:
+      - pa_db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 25s
+
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: mysql://pa_at_work:local-dev-only@db:3306/pa_at_work
+      UPLOAD_DIR: /data/photos
+      PORT: "3000"
+    volumes:
+      - pa_data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pa_db:
+  pa_data:

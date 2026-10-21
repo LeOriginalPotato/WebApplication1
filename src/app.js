@@ -447,7 +447,9 @@ function createApp({ config, pool, data }) {
     }
     const latitude = parseCoord(values.latitude, -90, 90);
     const longitude = parseCoord(values.longitude, -180, 180);
-    if (latitude === undefined || longitude === undefined) return fail('Latitude or longitude is not valid.');
+    if (latitude === undefined || longitude === undefined || (latitude === null) !== (longitude === null)) {
+      return fail('Location could not be saved. Try Use my location again, or send the complaint with the street address only.');
+    }
     const photo = readPhoto(req);
     if (photo.error) return fail(photo.error);
     if (photo.storedName) {
@@ -879,7 +881,7 @@ function createApp({ config, pool, data }) {
     const ward = await data.findArea(paramId(req.body.wardId));
     const latitude = parseCoord(req.body.latitude, -90, 90);
     const longitude = parseCoord(req.body.longitude, -180, 180);
-    if (!CATEGORIES.includes(category) || description.length < 10 || address.length < 5 || !municipality || municipality.kind !== 'municipality' || !ward || ward.parent_id !== municipality.id || latitude === undefined || longitude === undefined) {
+    if (!CATEGORIES.includes(category) || description.length < 10 || address.length < 5 || !municipality || municipality.kind !== 'municipality' || !ward || ward.parent_id !== municipality.id || latitude === undefined || longitude === undefined || (latitude === null) !== (longitude === null)) {
       return res.status(400).json({ message: 'Check the category, description, address, and area.' });
     }
     const created = await data.createComplaint({
