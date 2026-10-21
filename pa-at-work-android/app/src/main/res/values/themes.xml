@@ -1,5 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-	<style name="Theme.PAAtWork" parent="Theme.Material3.DayNight.NoActionBar">
-		<item name="android:statusBarColor" tools:targetApi="l">@android:color/transparent</item>
-	</style>
+    <style name="Theme.PAAtWork" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/pa_emerald</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSecondary">@color/pa_emerald_dark</item>
+        <item name="android:statusBarColor">@color/pa_surface</item>
+        <item name="android:navigationBarColor">@color/pa_surface</item>
+        <item name="android:windowBackground">@color/pa_surface</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
+        <item name="android:enforceStatusBarContrast" tools:targetApi="29">false</item>
+        <item name="android:enforceNavigationBarContrast" tools:targetApi="29">false</item>
+    </style>
 </resources>

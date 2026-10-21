@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="pa_emerald">#0F7A3F</color>
+    <color name="pa_emerald_dark">#0C6334</color>
+    <color name="pa_heading">#123524</color>
+    <color name="pa_text">#1F3A2C</color>
+    <color name="pa_surface">#F5FBF7</color>
+    <color name="white">#FFFFFF</color>
+</resources>

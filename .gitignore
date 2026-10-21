@@ -369,3 +369,8 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Android release signing. Never commit a keystore or its passwords.
+*.jks
+*.keystore
+keystore.properties

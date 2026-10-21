@@ -1,3 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-	<string name="app_name">PA At Work</string>
+    <string name="app_name">PA At Work</string>
+    <string name="share_page">Share this page</string>
+    <string name="share_chooser">Share link</string>
+    <string name="share_unavailable">Open a PA At Work page before sharing.</string>
+    <string name="offline_title">PA At Work needs an internet connection</string>
+    <string name="offline_body">This app works online only and does not keep a copy of your pages. Connect to the internet, then try again.</string>
+    <string name="insecure_title">Secure connection failed</string>
+    <string name="insecure_body">PA At Work will not continue over an untrusted connection. Check the date and time on your device, then try again.</string>
+    <string name="load_failed_title">This page didn\'t load</string>
+    <string name="load_failed_body">PA At Work could not open the page. Check your connection and try again.</string>
+    <string name="retry">Try again</string>
+    <string name="link_blocked">That link is not available in PA At Work.</string>
+    <string name="external_link_failed">No app is available to open that link.</string>
+    <string name="download_started">Saved to Downloads</string>
+    <string name="download_failed">Could not save the file.</string>
+    <string name="download_too_large">That file is too large to save in the app.</string>
+    <string name="storage_permission_needed">Allow storage access to save downloads on this Android version.</string>
+    <string name="file_chooser_failed">No app is available to pick a file.</string>
 </resources>
