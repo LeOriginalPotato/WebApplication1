@@ -29,6 +29,7 @@ import android.webkit.WebViewClient
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -38,7 +39,7 @@ import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
 
@@ -49,6 +50,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var errorView: View
     private lateinit var errorTitle: TextView
     private lateinit var errorBody: TextView
+    private lateinit var shareButton: FloatingActionButton
 
     private var mainFrameFailed = false
     private var errorVisible = false
@@ -96,11 +98,17 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        val barColor = ContextCompat.getColor(this, R.color.pa_surface)
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(barColor, barColor),
+            navigationBarStyle = SystemBarStyle.light(barColor, barColor)
+        )
         setContentView(R.layout.activity_main)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.root)) { view, insets ->
             val bars = insets.getInsets(
-                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime()
+                WindowInsetsCompat.Type.systemBars() or
+                    WindowInsetsCompat.Type.displayCutout() or
+                    WindowInsetsCompat.Type.ime()
             )
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
@@ -111,17 +119,8 @@ class MainActivity : AppCompatActivity() {
         errorView = findViewById(R.id.errorView)
         errorTitle = findViewById(R.id.errorTitle)
         errorBody = findViewById(R.id.errorBody)
-
-        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
-        toolbar.inflateMenu(R.menu.toolbar)
-        toolbar.setOnMenuItemClickListener { item ->
-            if (item.itemId == R.id.action_share) {
-                shareCurrentPage()
-                true
-            } else {
-                false
-            }
-        }
+        shareButton = findViewById(R.id.shareButton)
+        shareButton.setOnClickListener { shareCurrentPage() }
         findViewById<View>(R.id.retryButton).setOnClickListener { retry() }
         swipeRefresh.setColorSchemeColors(ContextCompat.getColor(this, R.color.pa_emerald))
         swipeRefresh.setOnRefreshListener {
@@ -613,6 +612,7 @@ class MainActivity : AppCompatActivity() {
         errorVisible = false
         errorView.visibility = View.GONE
         swipeRefresh.visibility = View.VISIBLE
+        shareButton.visibility = View.VISIBLE
     }
 
     private fun showConnectionError(error: ConnectionError) {
@@ -637,6 +637,7 @@ class MainActivity : AppCompatActivity() {
         errorTitle.setText(title)
         errorBody.setText(body)
         swipeRefresh.visibility = View.GONE
+        shareButton.visibility = View.GONE
         errorView.visibility = View.VISIBLE
     }
 

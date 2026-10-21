@@ -26,12 +26,12 @@ No `assetlinks.json` is required for this approach.
 - Keeps the session cookie so login survives leaving the app. Cookies are flushed to the WebView cookie store. They are not included in Android backup or device-to-device transfer (`android:allowBackup="false"`).
 - Does not cache pages, and does not turn on DOM storage. The current site does not use `localStorage`.
 - Back navigates WebView history, then leaves the app.
-- Share (toolbar) sends the current `https://pa-atwork.org/...` URL through the Android share sheet.
+- Share is a small green button at the bottom-right. It opens the Android share sheet with the current `https://pa-atwork.org/...` link. It sits above the navigation bar and the keyboard, and it is hidden on the offline screen. There is no app toolbar; the website header is the top of the screen, just under the status bar.
 - Saves files the site produces into the device Downloads folder. GET downloads use `DownloadManager` and include the session cookie. POST forms whose path contains an `export` or `download` segment (the live resident CSV export) are saved from the response, because `DownloadManager` cannot repeat a POST.
 - File inputs open the system picker. The live site does not currently render `<input type="file">`. The older ASP.NET and PHP copies do, and a future input will work. The app does not request camera, photo-library, or location permissions.
 - WebView file access from URLs is off, universal file access is off, mixed content is off, and Safe Browsing is on.
 
-The launcher icon is a green placeholder. Replace it with the official artwork before the store listing.
+The launcher icon is the official Patriotic Alliance logo. Adaptive icons keep the circle inside the safe zone on a `#F5FBF7` background, which is the site background and also the status-bar and navigation-bar colour. The 512×512 Play listing file is `store/play-store-icon-512.png`.
 
 ## Build a debug APK
 
@@ -103,7 +103,7 @@ Before the first production release, the owner still has to supply:
 
 - A public privacy policy URL. `https://pa-atwork.org/privacy` is not usable for this: it redirects to login, and the page body is placeholder text. Play requires a URL that anyone can open without an account.
 - A way for people who register in the app to ask for account deletion, including a web link. Play requires this when the app lets someone create an account. The site has registration and does not have a deletion page.
-- Store listing: app name `PA At Work`, short and full description, 512×512 icon, feature graphic, phone screenshots. The in-app icon is a placeholder.
+- Store listing: app name `PA At Work`, short and full description, feature graphic, and phone screenshots. Upload `store/play-store-icon-512.png` as the 512×512 icon.
 - Content rating questionnaire. Do not opt into Designed for Families. The site collects ID numbers.
 - Countries, pricing (this is a free app unless you decide otherwise), and the Data safety form below.
 - The signed AAB and Play App Signing.
@@ -141,11 +141,10 @@ Do not declare advertising ID, crash logs, or browsing history as collected. The
 
 1. Publish a real privacy policy at a public URL, and a real account-deletion URL, before production review.
 2. Confirm the Data safety sharing answer for Section 78 (municipal valuer) and whether any other server-side sharing exists.
-3. Replace the placeholder adaptive icon and produce the 512×512 listing icon.
-4. Create the upload keystore, turn on Play App Signing, and keep the keystore out of git.
-5. Choose store countries and the content-rating answers.
-6. Optional server follow-up, not required for the app to run: mark the session cookie `Secure` and give it a `Max-Age` so the session lifetime is explicit. The WebView already keeps the current session cookie across restarts.
-7. Optional later: Android App Links, if a shared `https://pa-atwork.org/...` link should open the app. That would need `assetlinks.json` on the site. It is not part of this build.
+3. Create the upload keystore, turn on Play App Signing, and keep the keystore out of git.
+4. Choose store countries and the content-rating answers.
+5. Optional server follow-up, not required for the app to run: mark the session cookie `Secure` and give it a `Max-Age` so the session lifetime is explicit. The WebView already keeps the current session cookie across restarts.
+6. Optional later: Android App Links, if a shared `https://pa-atwork.org/...` link should open the app. That would need `assetlinks.json` on the site. It is not part of this build.
 
 ## Site changes
 
