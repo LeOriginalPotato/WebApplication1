@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent">
+
+	<LinearLayout
+		android:id="@+id/webContainer"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:orientation="vertical">
+
+		<androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+			android:id="@+id/swipeRefresh"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent">
+
+			<WebView
+				android:id="@+id/webView"
+				android:layout_width="match_parent"
+				android:layout_height="match_parent" />
+		</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+	</LinearLayout>
+
+	<LinearLayout
+		android:id="@+id/errorView"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:gravity="center"
+		android:orientation="vertical"
+		android:padding="24dp"
+		android:visibility="gone">
+
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="Unable to load PA At Work right now."
+			android:textAppearance="?attr/textAppearanceHeadlineSmall" />
+
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="8dp"
+			android:text="Check your connection and pull to refresh."
+			android:textAppearance="?attr/textAppearanceBodyMedium" />
+	</LinearLayout>
+
+</FrameLayout>
