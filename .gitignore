@@ -285,6 +285,14 @@ FakesAssemblies/
 .ntvs_analysis.dat
 node_modules/
 
+# PA At Work local secrets and uploaded complaint photos
+.env
+.env.*
+!.env.example
+.demo-accounts.local
+storage/photos/*
+!storage/photos/.gitkeep
+
 # Visual Studio 6 build log
 *.plg
 
