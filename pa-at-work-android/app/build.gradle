@@ -1,42 +1,105 @@
 plugins {
-	id 'com.android.application'
-	id 'org.jetbrains.kotlin.android'
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
 }
 
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+
+def releaseStoreFile = System.getenv("PA_KEYSTORE_FILE") ?: keystoreProperties.getProperty("storeFile")
+def releaseStorePassword = System.getenv("PA_KEYSTORE_PASSWORD") ?: keystoreProperties.getProperty("storePassword")
+def releaseKeyAlias = System.getenv("PA_KEY_ALIAS") ?: keystoreProperties.getProperty("keyAlias")
+def releaseKeyPassword = System.getenv("PA_KEY_PASSWORD") ?: keystoreProperties.getProperty("keyPassword")
+
+def releaseSigningReady = releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
+
 android {
-	namespace 'org.paatwork.app'
-	compileSdk 34
+    namespace = 'org.paatwork.app'
+    compileSdk = 36
 
-	defaultConfig {
-		applicationId "org.paatwork.app"
-		minSdk 24
-		targetSdk 34
-		versionCode 1
-		versionName "1.0.0"
+    defaultConfig {
+        applicationId = "org.paatwork.app"
+        minSdk = 24
+        // Google Play requires target API 36 for new apps and updates as of 31 Aug 2026.
+        targetSdk = 36
+        versionCode = 1
+        versionName = "1.0.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
 
-		testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-	}
+    signingConfigs {
+        release {
+            if (releaseSigningReady) {
+                storeFile = rootProject.file(releaseStoreFile)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
 
-	buildTypes {
-		release {
-			minifyEnabled false
-			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-		}
-	}
+    buildTypes {
+        release {
+            minifyEnabled = true
+            shrinkResources = true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (releaseSigningReady) {
+                signingConfig = signingConfigs.release
+            }
+        }
+    }
 
-	compileOptions {
-		sourceCompatibility JavaVersion.VERSION_17
-		targetCompatibility JavaVersion.VERSION_17
-	}
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
 
-	kotlinOptions {
-		jvmTarget = '17'
-	}
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    lint {
+        abortOnError = true
+        checkReleaseBuilds = true
+    }
+}
+
+tasks.register("checkReleaseSigning") {
+    doLast {
+        if (!releaseSigningReady) {
+            throw new GradleException("""
+Release signing is not configured.
+Set PA_KEYSTORE_FILE, PA_KEYSTORE_PASSWORD, PA_KEY_ALIAS, and PA_KEY_PASSWORD,
+or copy keystore.properties.example to keystore.properties.
+Do not commit the keystore or the passwords.
+""".stripIndent())
+        }
+        def store = rootProject.file(releaseStoreFile)
+        if (!store.isFile()) {
+            throw new GradleException("Release keystore was not found: ${store}")
+        }
+    }
+}
+
+afterEvaluate {
+    tasks.matching { it.name == "bundleRelease" || it.name == "assembleRelease" }.configureEach {
+        dependsOn(tasks.named("checkReleaseSigning"))
+    }
 }
 
 dependencies {
-	implementation 'androidx.core:core-ktx:1.13.1'
-	implementation 'androidx.appcompat:appcompat:1.7.0'
-	implementation 'com.google.android.material:material:1.12.0'
-	implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+    implementation 'androidx.core:core-ktx:1.16.0'
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'androidx.activity:activity-ktx:1.10.1'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+    implementation 'androidx.browser:browser:1.8.0'
+    testImplementation 'junit:junit:4.13.2'
 }
