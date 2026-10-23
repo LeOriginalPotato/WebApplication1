@@ -91,6 +91,31 @@ function createApp({ config, pool, data }) {
     res.json({ ok: true, service: 'PA At Work' });
   });
 
+  // TEMPORARY cookie diagnostic. Remove /api/diag and /api/diag-session after
+  // the cPanel Set-Cookie issue is resolved. Registered before session() so it
+  // still answers if the session store is the problem. Body has no secrets.
+  function cookieDiag(req) {
+    const forwardedProto = req.headers['x-forwarded-proto'];
+    const proto = Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto;
+    return {
+      cookieSecure: config.cookieSecure,
+      trustProxy: config.trustProxy,
+      trustProxySetting: app.get('trust proxy'),
+      secure: req.secure,
+      protocol: req.protocol,
+      hostname: req.hostname,
+      xForwardedProto: typeof proto === 'string' ? proto.slice(0, 64) : null,
+      hasXForwardedFor: Boolean(req.headers['x-forwarded-for']),
+      nodeEnv: process.env.NODE_ENV || null,
+    };
+  }
+
+  app.get('/api/diag', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.cookie('probe', '1', { httpOnly: true, sameSite: 'lax', path: '/' });
+    res.json(cookieDiag(req));
+  });
+
   app.use(express.json({ limit: '200kb' }));
   app.use(express.urlencoded({ extended: true, limit: '200kb' }));
   app.use(express.text({ type: ['text/plain', 'text/*'], limit: '1mb' }));
@@ -116,6 +141,16 @@ function createApp({ config, pool, data }) {
       path: '/',
     },
   }));
+
+  // TEMPORARY. Same JSON as /api/diag, after session(), with the session
+  // modified so express-session will add its Set-Cookie when it is willing to.
+  // saveUninitialized is false, so reading req.session alone would not set it.
+  // Remove with /api/diag.
+  app.get('/api/diag-session', (req, res) => {
+    req.session.diag = 1;
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(cookieDiag(req));
+  });
 
   app.use(wrap(async (req, res, next) => {
     ensureCsrf(req);
