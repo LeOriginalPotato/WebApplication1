@@ -150,3 +150,9 @@ npm start
 - PA members see complaints in their areas, record who was sent and when, and mark a complaint complete. They do not see the resident directory.
 - Admins do that too, refer a complaint onward, and manage residents and staff in their areas. They cannot create or edit a server admin.
 - Server admins can do the admin tasks in every area, create other server admins, and open Settings.
+
+## Presentation demo data
+
+`sql/demo-seed.sql` adds fake Randfontein residents, PA members, an admin, and complaints for a presentation. In phpMyAdmin, select `paatwork_site`, open SQL, paste the whole file, and click Go. It does not contain a password. New demo accounts copy the password hash of the Server Admin with the lowest id, so sign in with that person's existing password. Running it again does not create a second copy. If phpMyAdmin stops on a missing table named `demo_seed_needs_server_admin` or `demo_seed_needs_randfontein_wards`, nothing was inserted: create the Server Admin or run the app migrations first.
+
+`sql/demo-cleanup.sql` deletes only those demo accounts (`demo.*@example.com`) and their complaints, updates, and notifications. Areas and every other user stay.
