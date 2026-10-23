@@ -101,6 +101,20 @@ function createApp({ config, pool, data }) {
   app.use('/styles', express.static(path.join(root, 'public', 'styles'), { index: false, dotfiles: 'deny', maxAge: '1h' }));
   app.use('/images', express.static(path.join(root, 'public', 'images'), { index: false, dotfiles: 'deny', maxAge: '1d' }));
 
+  // Opt-in. Some TLS-terminating proxies (this cPanel Apache) talk to Node
+  // over plain HTTP and never send X-Forwarded-Proto. express-session then
+  // refuses to set a Secure cookie because req.secure is false. Fill the
+  // header only when it is missing, and only before session(), so an existing
+  // trust-proxy hop can treat the request as HTTPS. A proxy that already
+  // sends the header is left unchanged. This middleware is not registered
+  // unless FORCE_HTTPS=true, and it does nothing useful unless trust proxy is on.
+  if (config.forceHttps) {
+    app.use((req, res, next) => {
+      if (!req.headers['x-forwarded-proto']) req.headers['x-forwarded-proto'] = 'https';
+      next();
+    });
+  }
+
   app.use(session({
     name: 'paatwork.sid',
     secret: config.sessionSecret,

@@ -85,8 +85,9 @@ Copy `.env.example` to `.env` for local development. On cPanel, set the same var
 | `DATABASE_SOCKET` | No | MariaDB socket path, if cPanel does not connect over TCP. |
 | `SESSION_SECRET` | Yes | At least 32 characters. The app will not start with a missing or short value, and there is no built-in fallback. |
 | `UPLOAD_DIR` | No | Directory for complaint photos. Defaults to `storage/photos`, which is not web-accessible. On cPanel use a folder outside `public_html`. |
-| `COOKIE_SECURE` | No | Set to `true` on HTTPS. |
-| `TRUST_PROXY` | No | Set to `true` when cPanel terminates HTTPS in front of Node. |
+| `COOKIE_SECURE` | No | Set to `true` when browsers use HTTPS. The session cookie is then marked Secure, and express-session will not send it unless the request is HTTPS. |
+| `TRUST_PROXY` | No | Set to `true` when cPanel terminates HTTPS in front of Node. Express then trusts one hop of `X-Forwarded-For` and `X-Forwarded-Proto`. |
+| `FORCE_HTTPS` | No | Set to `true` only for a proxy that speaks plain HTTP to Node and does not send `X-Forwarded-Proto`. Before the session middleware, a missing `X-Forwarded-Proto` is set to `https`, so with `TRUST_PROXY=true` and `COOKIE_SECURE=true` the Secure cookie is issued. An existing `X-Forwarded-Proto` value is not replaced. Leave unset when the proxy already sends `X-Forwarded-Proto: https`, and leave unset for local HTTP. Has no effect when it is not exactly `true`. |
 | `PORT` | No | cPanel sets this. Local default is `3000`. |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` | For setup only | Used by `npm run create-admin`. Remove `ADMIN_PASSWORD` afterwards. |
 | `WHATSAPP_IMPORT_WEBHOOK_TOKEN` | No | Bearer token for the WhatsApp import webhook. |
@@ -126,7 +127,7 @@ Use a test subdomain and a separate MariaDB database from the live site. Point t
 
 1. Create a database and user in cPanel. Grant that user only the test database.
 2. Create the Node.js application with application root set to this project, startup file `server.js` (or `npm start`).
-3. Set `DATABASE_URL`, `SESSION_SECRET`, `UPLOAD_DIR`, `COOKIE_SECURE=true`, and `TRUST_PROXY=true`.
+3. Set `DATABASE_URL`, `SESSION_SECRET`, `UPLOAD_DIR`, `COOKIE_SECURE=true`, `TRUST_PROXY=true`, and `FORCE_HTTPS=true`. This Apache proxies over HTTP and omits `X-Forwarded-Proto`; without `FORCE_HTTPS` a Secure session cookie is never sent and sign-in fails.
 4. Run NPM Install in the cPanel Node UI.
 5. Open the Terminal and run `npm run create-admin` with the admin variables set for that command only.
 6. Restart the app and sign in on the test hostname.
