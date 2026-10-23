@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The site bottom nav is a fixed bar about 52 CSS px tall (one dp per CSS px
+         at the WebView's device-width viewport). The mini share button is 40dp.
+         This margin keeps that button above Home / Report / My reports / More,
+         including a gap, on 360–414dp screens. System bars and the keyboard are
+         already applied as padding on the root, so they are not included here. -->
+    <dimen name="share_button_margin_bottom">72dp</dimen>
+    <dimen name="share_button_margin_end">16dp</dimen>
+</resources>
