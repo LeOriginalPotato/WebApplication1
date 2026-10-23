@@ -49,6 +49,9 @@ function loadConfig() {
     sessionSecret,
     cookieSecure: process.env.COOKIE_SECURE === 'true',
     trustProxy: process.env.TRUST_PROXY === 'true',
+    // Apache on this host proxies over HTTP and omits X-Forwarded-Proto.
+    // Only an explicit true opts in; anything else leaves protocol detection alone.
+    forceHttps: process.env.FORCE_HTTPS === 'true',
   };
 }
 
